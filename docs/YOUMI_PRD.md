@@ -17,6 +17,7 @@
   - [5. Collaboration \& Workflow](#5-collaboration--workflow)
   - [6. Database Schema (Entities)](#6-database-schema-entities)
     - [users](#users)
+    - [task\_folders](#task_folders)
     - [task\_templates](#task_templates)
     - [habits](#habits)
     - [activity\_instances](#activity_instances)
@@ -126,7 +127,15 @@ The data model separates blueprints (templates/habits) from instances (activity 
 | --- | --- | --- |
 | id | UUID | Primary key, linked to Supabase Auth |
 | email | String | User contact/login |
-| theme_preference | String | e.g., `gruvbox`, `nordic` |
+| theme_pref | String | e.g., `gruvbox`, `nordic` |
+
+### task_folders
+
+| Column | Type | Description |
+| --- | --- | --- |
+| id | UUID | Primary key |
+| user_id | UUID | Foreign key -> users.id |
+| title | String | Display name for grouping templates |
 
 ### task_templates
 
@@ -135,9 +144,10 @@ The data model separates blueprints (templates/habits) from instances (activity 
 | id | UUID | Primary key |
 | user_id | UUID | Foreign key -> users.id |
 | title | String | Name of the reusable task |
-| label | Enum | Enforced category (`Work`, `Health`, `Mindfulness`, `Free-Time`) |
-| expected_duration | Int | Expected completion time in minutes |
-| sub_steps | JSONB | Array of strings representing checklist items |
+| label | Enum | Enforced category (`work`, `health`, `mindfulness`, `free_time`) |
+| expected_duration | Interval | Expected completion time |
+| sub_tasks | JSONB | Array of objects: [{"id": "uuid", "title": "string", "position": int}] |
+| task_folder_id | UUID | Foreign key -> task_folders.id |
 
 ### habits
 
@@ -146,8 +156,8 @@ The data model separates blueprints (templates/habits) from instances (activity 
 | id | UUID | Primary key |
 | user_id | UUID | Foreign key -> users.id |
 | title | String | Name of the habit |
-| label | Enum | Enforced category (`Work`, `Health`, `Mindfulness`, `Free-Time`) |
-| recurrence_mask | Int | Bitmask for active days (e.g., `0b01111100` for Mon-Fri) |
+| label | Enum | Enforced category (`work`, `health`, `mindfulness`, `free_time`) |
+| recurrence_mask | Bitmask | Days of week bitmask (e.g., `0b01111100` for Mon-Fri) |
 | current_streak | Int | Integer tracking consecutive completions |
 
 ### activity_instances
@@ -156,13 +166,15 @@ The data model separates blueprints (templates/habits) from instances (activity 
 | --- | --- | --- |
 | id | UUID | Primary key |
 | user_id | UUID | Foreign key -> users.id |
-| template_id | UUID | Foreign key -> task_templates.id (nullable) |
-| habit_id | UUID | Foreign key -> habits.id (nullable) |
-| scheduled_date | Timestamp | When the event is slotted to occur |
-| status | String | `Pending`, `Completed`, `Missed` |
-| actual_duration | Int | Actual minutes spent (populated on completion) |
-| notes | Text | Localized execution diary/notes |
-| sub_step_states | JSONB | Key-value map of sub-step strings to boolean completion states |
+| task_template_id | UUID | Foreign key -> task_templates.id (nullable; XOR with habit_id via DB constraint) |
+| habit_id | UUID | Foreign key -> habits.id (nullable; XOR with task_template_id via DB constraint) |
+| scheduled_date | Timestamp | Timestamp the item is scheduled for |
+| status | Enum | `success`, `missed`, `pending` |
+| actual_duration | Interval | Actual time spent (populated on completion) |
+| note | String | Localized execution diary/notes |
+| sub_tasks_states | JSONB | Object mapping sub_task_id to boolean (e.g., {"uuid": true}) |
+
+Constraint: Exactly one of `task_template_id` or `habit_id` must be non-null. Enforce with a DB constraint and app-level validation.
 
 ## 7. Core Views (Feature Scope)
 
@@ -191,8 +203,8 @@ Primary operational interface, focused strictly on executing today's scheduled i
 
 - User views a chronological list of today's tasks and habits (`activity_instances`).
 - User marks an entire item as completed.
-- User toggles individual `sub_steps` within a composite task.
-- User inputs `actual_duration` and notes upon marking a task completed.
+- User toggles individual `sub_tasks` within a composite task.
+- User inputs `actual_duration` and note upon marking a task completed.
 - User defers an item (updates `scheduled_date` to tomorrow).
 - User views a top-level daily progress metric (completion percentage).
 
@@ -217,8 +229,9 @@ Management interface for reusable blueprints. Defines structural properties of t
 
 **Use Cases**
 
-- User creates, reads, updates, or deletes a `task_template` (title, label, expected duration, optional `sub_steps`).
+- User creates, reads, updates, or deletes a `task_template` (title, label, expected duration, optional `sub_tasks`).
 - User creates, reads, updates, or deletes a `habit` (title, label, recurrence bitmask).
+- User creates and organizes `task_folders` for grouping templates.
 - System automatically generates future `activity_instances` based on habit recurrence mask modifications.
 
 ### 7.5 Analytics
