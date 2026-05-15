@@ -11,15 +11,15 @@ class AuthPage extends StatefulWidget {
 
 class _AuthPageState extends State<AuthPage> {
   final formKey = GlobalKey<FormState>();
-  final nameController = TextEditingController(); 
-  final emailController = TextEditingController(); 
-  final passwordController = TextEditingController(); 
-  final confirmPasswordController = TextEditingController(); 
-  final resetEmailController = TextEditingController(); 
+  final nameController = TextEditingController();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
+  final resetEmailController = TextEditingController();
 
-  bool isLoginView = true; 
-  bool isPasswordObscured = true; 
-  bool isConfirmPasswordObscured = true; 
+  bool isLoginView = true;
+  bool isPasswordObscured = true;
+  bool isConfirmPasswordObscured = true;
 
   @override
   void dispose() {
@@ -60,7 +60,7 @@ class _AuthPageState extends State<AuthPage> {
                     Text('Login', style: theme.textTheme.headlineSmall),
                     const SizedBox(height: 30),
                     SizedBox(
-                      width: MediaQuery.of(context).size.width * 0.85, 
+                      width: MediaQuery.of(context).size.width * 0.85,
                       child: TextFormField(
                         controller: emailController,
                         validator: validateEmail,
@@ -83,10 +83,16 @@ class _AuthPageState extends State<AuthPage> {
                           prefixIcon: const Icon(Icons.lock),
                           label: const Text("Password"),
                           suffixIcon: IconButton(
-                            onPressed: () { 
-                              setState(() { isPasswordObscured = !isPasswordObscured; }); 
+                            onPressed: () {
+                              setState(() {
+                                isPasswordObscured = !isPasswordObscured;
+                              });
                             },
-                            icon: Icon(isPasswordObscured ? Icons.visibility_off : Icons.visibility),
+                            icon: Icon(
+                              isPasswordObscured
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
                           ),
                         ),
                       ),
@@ -99,20 +105,33 @@ class _AuthPageState extends State<AuthPage> {
                             context: context,
                             isScrollControlled: true,
                             builder: (context) => Padding(
-                              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 20, right: 20, top: 20),
+                              padding: EdgeInsets.only(
+                                bottom: MediaQuery.of(
+                                  context,
+                                ).viewInsets.bottom,
+                                left: 20,
+                                right: 20,
+                                top: 20,
+                              ),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text("Reset Password", style: theme.textTheme.titleLarge),
+                                  Text(
+                                    "Reset Password",
+                                    style: theme.textTheme.titleLarge,
+                                  ),
                                   const SizedBox(height: 20),
                                   TextField(
-                                    controller: resetEmailController, 
-                                    decoration: const InputDecoration(border: OutlineInputBorder(), label: Text("Email"))
+                                    controller: resetEmailController,
+                                    decoration: const InputDecoration(
+                                      border: OutlineInputBorder(),
+                                      label: Text("Email"),
+                                    ),
                                   ),
                                   const SizedBox(height: 20),
                                   ElevatedButton(
-                                    onPressed: () => Navigator.pop(context), 
-                                    child: const Text("Send")
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text("Send"),
                                   ),
                                   const SizedBox(height: 20),
                                 ],
@@ -126,8 +145,7 @@ class _AuthPageState extends State<AuthPage> {
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () {
-                        if (formKey.currentState!.validate()) {
-                        }
+                        if (formKey.currentState!.validate()) {}
                       },
                       child: const Text('LogIn'),
                     ),
@@ -141,7 +159,10 @@ class _AuthPageState extends State<AuthPage> {
                       child: TextFormField(
                         controller: nameController,
                         validator: validateName,
-                        decoration: const InputDecoration(border: OutlineInputBorder(), label: Text("Name")),
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          label: Text("Name"),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -150,7 +171,10 @@ class _AuthPageState extends State<AuthPage> {
                       child: TextFormField(
                         controller: emailController,
                         validator: validateEmail,
-                        decoration: const InputDecoration(border: OutlineInputBorder(), label: Text("Email")),
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          label: Text("Email"),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -164,10 +188,16 @@ class _AuthPageState extends State<AuthPage> {
                           border: const OutlineInputBorder(),
                           label: const Text("Password"),
                           suffixIcon: IconButton(
-                            onPressed: () { 
-                              setState(() { isPasswordObscured = !isPasswordObscured; }); 
-                            }, 
-                            icon: Icon(isPasswordObscured ? Icons.visibility_off : Icons.visibility)
+                            onPressed: () {
+                              setState(() {
+                                isPasswordObscured = !isPasswordObscured;
+                              });
+                            },
+                            icon: Icon(
+                              isPasswordObscured
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
                           ),
                         ),
                       ),
@@ -183,10 +213,17 @@ class _AuthPageState extends State<AuthPage> {
                           border: const OutlineInputBorder(),
                           label: const Text("Confirm Password"),
                           suffixIcon: IconButton(
-                            onPressed: () { 
-                              setState(() { isConfirmPasswordObscured = !isConfirmPasswordObscured; }); 
-                            }, 
-                            icon: Icon(isConfirmPasswordObscured ? Icons.visibility_off : Icons.visibility)
+                            onPressed: () {
+                              setState(() {
+                                isConfirmPasswordObscured =
+                                    !isConfirmPasswordObscured;
+                              });
+                            },
+                            icon: Icon(
+                              isConfirmPasswordObscured
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
                           ),
                         ),
                       ),
@@ -194,8 +231,7 @@ class _AuthPageState extends State<AuthPage> {
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () {
-                        if (formKey.currentState!.validate()) {
-                        }
+                        if (formKey.currentState!.validate()) {}
                       },
                       child: const Text('SignUp'),
                     ),
@@ -203,10 +239,16 @@ class _AuthPageState extends State<AuthPage> {
 
                   const SizedBox(height: 10),
                   TextButton(
-                    onPressed: () { 
-                      setState(() { isLoginView = !isLoginView; }); 
+                    onPressed: () {
+                      setState(() {
+                        isLoginView = !isLoginView;
+                      });
                     },
-                    child: Text(isLoginView ? "New here? SignUp" : "Have Account? LogIn"),
+                    child: Text(
+                      isLoginView
+                          ? "New here? Sign up"
+                          : "Already Have an account? Log in",
+                    ),
                   ),
                 ],
               ),
@@ -222,14 +264,18 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   String? validateEmail(String? value) {
-    return (value != null && value.contains("@")) ? null : "Not a valid Mail";
+    return (value != null && value.contains("@")) ? null : "Invalid Email!";
   }
 
   String? validatePassword(String? value) {
-    return (value != null && value.length > 5) ? null : "Short Password";
+    return (value != null && value.length > 5)
+        ? null
+        : "Password must be at least 6 characters!";
   }
 
   String? validateConfirmPassword(String? value) {
-    return (value != null && value == passwordController.text) ? null : "Passwords do not match";
+    return (value != null && value == passwordController.text)
+        ? null
+        : "Passwords do not match!";
   }
 }
