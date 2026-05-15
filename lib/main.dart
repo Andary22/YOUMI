@@ -6,6 +6,8 @@ import 'package:youmi_dev/providers/blueprint_provider.dart';
 import 'package:youmi_dev/providers/execution_provider.dart';
 import 'package:youmi_dev/providers/theme_provider.dart';
 import 'package:youmi_dev/style/palettes.dart';
+import 'package:youmi_dev/features/dashboard/dashboard.dart';
+
 
 //this main is currently a placeholder.
 /*
@@ -36,7 +38,7 @@ class YoumiApp extends StatelessWidget {
           return MaterialApp(
             title: 'Youmi',
             theme: themeProvider.theme,
-            home: const ThemeShowcase(),
+            home: const DashboardView(), // added dashboard
           );
         },
       ),

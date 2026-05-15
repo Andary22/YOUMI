@@ -1,172 +1,186 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:youmi_dev/providers/theme_provider.dart';
-import 'package:youmi_dev/features/auth/auth.dart';
+import 'package:youmi_dev/style/palettes.dart';
 
-class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+class SettingsView extends StatefulWidget {
+  const SettingsView({super.key});
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  State<SettingsView> createState() => _SettingsViewState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
-  bool isCalendarSynced = false;
+class _SettingsViewState extends State<SettingsView> {
+  final _nameController = TextEditingController(text: 'John Doe');
+  final _emailController = TextEditingController(text: 'john.doe@example.com');
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final themeProvider = context.watch<ThemeProvider>();
-
+    const palettes = <AppPalette>[
+      LightPalette(),
+      DarkPalette(),
+      GruvboxMaterialLightPalette(),
+      GruvboxMaterialDarkPalette(),
+      CatppuccinLattePalette(),
+      CatppuccinMochaPalette(),
+      NordLightPalette(),
+      NordDarkPalette(),
+    ];
+    final selectedPalette = palettes.firstWhere(
+      (palette) => palette.name == themeProvider.palette.name,
+      orElse: () => themeProvider.palette,
+    );
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: Text('Settings', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text('Settings'),
         elevation: 0,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              GestureDetector(
-                onTap: () => _showImagePickerModel(context),
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                      child: Icon(Icons.person, size: 60, color: theme.colorScheme.primary),
-                    ),
-                    const SizedBox(height: 12),
-                    Text('Yazan', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                    Text('yazan@example.com', style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
-              _buildSettingItem(
-                context,
-                icon: Icons.dark_mode_outlined,
-                title: 'Dark Mode',
-                trailing: Switch(
-                  value: themeProvider.isDark,
-                  onChanged: (value) => themeProvider.togglePalette(),
-                  activeColor: theme.colorScheme.primary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildSettingItem(
-                context,
-                icon: Icons.sync_outlined,
-                title: 'Sync Calendar',
-                trailing: Switch(
-                  value: isCalendarSynced,
-                  onChanged: (value) {
-                    setState(() {
-                      isCalendarSynced = value;
-                    });
-                  },
-                  activeColor: theme.colorScheme.primary,
-                ),
-              ),
-              const SizedBox(height: 40),
-              SizedBox(
-                width: 120,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.surface,
-                    foregroundColor: theme.colorScheme.error,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: theme.colorScheme.error.withOpacity(0.2)),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Profile Information
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Profile Information'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name',
+                      prefixIcon: Icon(Icons.person),
                     ),
                   ),
-                  onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const AuthPage()),
-                      (Route<dynamic> route) => false,
-                    );
-                  },
-                  child: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email Address',
+                      prefixIcon: Icon(Icons.email),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _passwordController,
+                    decoration: const InputDecoration(
+                      labelText: 'Password',
+                      prefixIcon: Icon(Icons.lock),
+                    ),
+                    obscureText: true,
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingItem(BuildContext context, {required IconData icon, required String title, required Widget trailing}) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 22, color: theme.colorScheme.primary),
-          const SizedBox(width: 16),
-          Text(title, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
-          const Spacer(),
-          trailing,
-        ],
-      ),
-    );
-  }
-
-  void _showImagePickerModel(BuildContext context) {
-    final theme = Theme.of(context);
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: theme.colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 24),
-            Text('Update Photo', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildPickerOption(context, Icons.camera_alt_outlined, 'Camera'),
-                _buildPickerOption(context, Icons.photo_outlined, 'Gallery'),
-              ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPickerOption(BuildContext context, IconData icon, String label) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: theme.colorScheme.primary.withOpacity(0.05), shape: BoxShape.circle),
-            child: Icon(icon, color: theme.colorScheme.primary),
           ),
-          const SizedBox(height: 8),
-          Text(label, style: theme.textTheme.bodySmall),
+          const SizedBox(height: 12),
+
+          // Appearance
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Appearance'),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Expanded(child: Text('Theme')),
+                      DropdownButton<AppPalette>(
+                        value: selectedPalette,
+                        items: palettes
+                            .map(
+                              (palette) => DropdownMenuItem(
+                                value: palette,
+                                child: Text(palette.name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (palette) {
+                          if (palette != null) {
+                            themeProvider.setPalette(palette);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Calendar Integration
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Calendar Integration (Optional)'),
+                  const SizedBox(height: 8),
+                  const Text('Connect your calendar to sync events automatically'),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.calendar_today),
+                    label: const Text('Connect Google Calendar'),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.calendar_today),
+                    label: const Text('Connect Outlook Calendar'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Log Out button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.logout),
+              label: const Text('Log Out'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 40),
         ],
       ),
     );
   }
 }
+
+// SettingsView: mohamed
