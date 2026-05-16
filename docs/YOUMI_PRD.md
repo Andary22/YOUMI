@@ -168,6 +168,7 @@ The data model separates blueprints (templates/habits) from instances (activity 
 | user_id | UUID | Foreign key -> users.id |
 | task_template_id | UUID | Foreign key -> task_templates.id (nullable; XOR with habit_id via DB constraint) |
 | habit_id | UUID | Foreign key -> habits.id (nullable; XOR with task_template_id via DB constraint) |
+| label | Enum | Enforced category (`work`, `health`, `mindfulness`, `free_time`) |
 | scheduled_date | Timestamp | Timestamp the item is scheduled for |
 | status | Enum | `success`, `missed`, `pending` |
 | actual_duration | Interval | Actual time spent (populated on completion) |
@@ -212,14 +213,23 @@ Primary operational interface, focused strictly on executing today's scheduled i
 
 **Use Case Description**
 
-Centralized scheduling interface used to convert blueprints into actionable instances by assigning them to specific dates and times.
+Centralized scheduling interface used to convert blueprints into actionable instances by assigning them to specific dates and times. The calendar reads directly from `activity_instances` and anchors on `scheduled_date`.
 
 **Use Cases**
 
-- User toggles between daily, weekly, and monthly timeline views.
-- User selects a `task_template` from a quick-add repository and plots it onto a specific calendar slot (creating an `activity_instance`).
-- User adjusts the scheduled time block of an existing `activity_instance`.
-- User removes an `activity_instance` from the schedule without deleting the source `task_template`.
+- User switches between two tabs: **Schedule** (month grid) and **Today** (day list).
+- User selects a day in the month grid to view scheduled instances.
+- User uses Quick Add to create an `activity_instance` from templates or habits with a chosen time and label.
+- Habits are all-day entries (no time picker); tasks require a time.
+- User adjusts a task instance time via edit flow (time picker).
+- User adds or edits a note for a scheduled instance from the daily view.
+- User removes an `activity_instance` from the schedule without deleting the source blueprint.
+
+**Performance Rules**
+
+- Add a B-Tree index on `activity_instances.scheduled_date`.
+- Fetch only the currently visible month range; never load full history into memory.
+- Group fetched rows into a map keyed by date (midnight) for O(1) calendar lookup.
 
 ### 7.4 Library (Template & Habit Editor)
 

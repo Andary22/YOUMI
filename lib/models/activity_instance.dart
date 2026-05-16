@@ -1,4 +1,5 @@
 import 'package:youmi_dev/core/utils.dart';
+import 'package:youmi_dev/models/labels.dart';
 
 enum ActivityStatus { success, missed, pending }
 
@@ -15,6 +16,7 @@ class ActivityInstance {
   final String userId;
   final String? taskTemplateId;
   final String? habitId;
+  final TaskLabel? label;
   final DateTime scheduledDate;
   final ActivityStatus status;
   final Duration? actualDuration;
@@ -28,6 +30,7 @@ class ActivityInstance {
     required this.status,
     this.taskTemplateId,
     this.habitId,
+    this.label,
     this.actualDuration,
     this.note,
     Map<String, bool>? subTaskStates,
@@ -46,6 +49,9 @@ class ActivityInstance {
       userId: json['user_id'] as String,
       taskTemplateId: json['task_template_id'] as String?,
       habitId: json['habit_id'] as String?,
+      label: json['label'] == null
+          ? null
+          : taskLabelFromDb(json['label'] as String),
       scheduledDate: _parseTimestamp(json['scheduled_date']),
       status: activityStatusFromDb(json['status'] as String),
       actualDuration: json['actual_duration'] == null
@@ -64,6 +70,7 @@ class ActivityInstance {
       'user_id': userId,
       'task_template_id': taskTemplateId,
       'habit_id': habitId,
+      'label': label == null ? null : taskLabelToDb(label!),
       'scheduled_date': scheduledDate.toIso8601String(),
       'status': activityStatusToDb(status),
       'actual_duration': actualDuration == null
