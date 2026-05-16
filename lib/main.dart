@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:youmi_dev/features/analytics/analytics.dart';
 // import 'package:youmi_dev/features/app_shell.dart'; later, remove feature imports and use this instead.
+import 'package:youmi_dev/features/auth/auth.dart';
+import 'package:youmi_dev/features/planner/planner.dart';
+import 'package:youmi_dev/features/settings/settings.dart';
+import 'package:youmi_dev/providers/analytics_provider.dart';
 import 'package:youmi_dev/providers/app_provider.dart';
 import 'package:youmi_dev/providers/blueprint_provider.dart';
 import 'package:youmi_dev/providers/execution_provider.dart';
@@ -25,6 +30,7 @@ class YoumiApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
         ChangeNotifierProvider(create: (_) => AppProvider()),
         ChangeNotifierProvider(create: (_) => BlueprintProvider()),
         ChangeNotifierProvider(create: (_) => ExecutionProvider()),
@@ -46,6 +52,9 @@ class YoumiApp extends StatelessWidget {
 
 class ThemeShowcase extends StatelessWidget {
   const ThemeShowcase({super.key});
+
+  //PUT YOUR WIDGET HERE TO TEST IT!
+  static const Widget testedView = AnalyticsView();
 
   static const List<AppPalette> _palettes = [
     LightPalette(),
@@ -105,6 +114,16 @@ class ThemeShowcase extends StatelessWidget {
                 themeProvider.setPalette(palette);
               }
             },
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => testedView));
+            },
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('Open Tested View'),
           ),
           const SizedBox(height: 16),
           Container(

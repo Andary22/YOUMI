@@ -35,16 +35,8 @@ class MockData {
       label: TaskLabel.work,
       expectedDuration: const Duration(hours: 1, minutes: 30),
       subTasks: const [
-        SubTask(
-          id: 'st-001',
-          title: 'Define outcome',
-          position: 0,
-        ),
-        SubTask(
-          id: 'st-002',
-          title: 'Focus sprint',
-          position: 1,
-        ),
+        SubTask(id: 'st-001', title: 'Define outcome', position: 0),
+        SubTask(id: 'st-002', title: 'Focus sprint', position: 1),
       ],
       taskFolderId: taskFolders[0].id,
     ),
@@ -55,16 +47,8 @@ class MockData {
       label: TaskLabel.health,
       expectedDuration: const Duration(hours: 1),
       subTasks: const [
-        SubTask(
-          id: 'st-003',
-          title: 'Warm up',
-          position: 0,
-        ),
-        SubTask(
-          id: 'st-004',
-          title: 'Main lifts',
-          position: 1,
-        ),
+        SubTask(id: 'st-003', title: 'Warm up', position: 0),
+        SubTask(id: 'st-004', title: 'Main lifts', position: 1),
       ],
       taskFolderId: taskFolders[1].id,
     ),
@@ -75,11 +59,7 @@ class MockData {
       label: TaskLabel.freeTime,
       expectedDuration: const Duration(minutes: 40),
       subTasks: const [
-        SubTask(
-          id: 'st-005',
-          title: 'Pick chapter',
-          position: 0,
-        ),
+        SubTask(id: 'st-005', title: 'Pick chapter', position: 0),
       ],
       taskFolderId: taskFolders[1].id,
     ),
@@ -109,6 +89,7 @@ class MockData {
       id: 'aaaa1111-2222-3333-4444-555555555555',
       userId: users[0].id,
       taskTemplateId: taskTemplates[0].id,
+      label: taskTemplates[0].label,
       scheduledDate: DateTime(2026, 4, 28, 9, 0),
       status: ActivityStatus.pending,
       subTaskStates: {
@@ -120,6 +101,7 @@ class MockData {
       id: 'bbbb1111-2222-3333-4444-666666666666',
       userId: users[0].id,
       habitId: habits[0].id,
+      label: habits[0].label,
       scheduledDate: DateTime(2026, 4, 28, 7, 30),
       status: ActivityStatus.success,
       actualDuration: const Duration(minutes: 8),
@@ -129,6 +111,7 @@ class MockData {
       id: 'cccc1111-2222-3333-4444-777777777777',
       userId: users[0].id,
       taskTemplateId: taskTemplates[1].id,
+      label: taskTemplates[1].label,
       scheduledDate: DateTime(2026, 4, 28, 18, 0),
       status: ActivityStatus.missed,
       subTaskStates: {
