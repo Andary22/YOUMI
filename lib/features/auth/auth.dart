@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:youmi_dev/providers/app_provider.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -11,67 +9,53 @@ class AuthPage extends StatefulWidget {
 
 class _AuthPageState extends State<AuthPage> {
   final formKey = GlobalKey<FormState>();
-  final nameController = TextEditingController(); 
-  final emailController = TextEditingController(); 
-  final passwordController = TextEditingController(); 
-  final confirmPasswordController = TextEditingController(); 
-  final resetEmailController = TextEditingController(); 
+  TextEditingController nameController = TextEditingController();
+  TextEditingController emailController = TextEditingController();
+  TextEditingController passwordController = TextEditingController();
+  TextEditingController confirmPasswordController = TextEditingController();
+  TextEditingController resetEmailController = TextEditingController();
 
-  bool isLoginView = true; 
-  bool isPasswordObscured = true; 
-  bool isConfirmPasswordObscured = true; 
-
-  @override
-  void dispose() {
-    nameController.dispose();
-    emailController.dispose();
-    passwordController.dispose();
-    confirmPasswordController.dispose();
-    resetEmailController.dispose();
-    super.dispose();
-  }
+  bool isLoginView = true;
+  bool isPasswordObscured = true;
+  bool isConfirmPasswordObscured = true;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    // ignore: unused_local_variable
-    final appProvider = context.read<AppProvider>();
-
     return Scaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: EdgeInsets.all(24.0),
             child: Form(
               key: formKey,
               child: Column(
                 children: [
                   Text(
                     'YOUMI',
-                    style: theme.textTheme.displaySmall?.copyWith(
-                      color: theme.colorScheme.primary,
+                    style: TextStyle(
+                      fontSize: 40,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 4.0,
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  SizedBox(height: 40),
 
                   if (isLoginView) ...[
-                    Text('Login', style: theme.textTheme.headlineSmall),
-                    const SizedBox(height: 30),
+                    Text('Login', style: TextStyle(fontSize: 25)),
+                    SizedBox(height: 30),
                     SizedBox(
-                      width: MediaQuery.of(context).size.width * 0.85, 
+                      width: MediaQuery.of(context).size.width * 0.85,
                       child: TextFormField(
                         controller: emailController,
                         validator: validateEmail,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.email),
                           label: Text("Email"),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     SizedBox(
                       width: MediaQuery.of(context).size.width * 0.85,
                       child: TextFormField(
@@ -79,14 +63,20 @@ class _AuthPageState extends State<AuthPage> {
                         validator: validatePassword,
                         obscureText: isPasswordObscured,
                         decoration: InputDecoration(
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.lock),
-                          label: const Text("Password"),
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.lock),
+                          label: Text("Password"),
                           suffixIcon: IconButton(
-                            onPressed: () { 
-                              setState(() { isPasswordObscured = !isPasswordObscured; }); 
+                            onPressed: () {
+                              setState(() {
+                                isPasswordObscured = !isPasswordObscured;
+                              });
                             },
-                            icon: Icon(isPasswordObscured ? Icons.visibility_off : Icons.visibility),
+                            icon: Icon(
+                              isPasswordObscured
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
                           ),
                         ),
                       ),
@@ -99,61 +89,87 @@ class _AuthPageState extends State<AuthPage> {
                             context: context,
                             isScrollControlled: true,
                             builder: (context) => Padding(
-                              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 20, right: 20, top: 20),
+                              padding: EdgeInsets.only(
+                                bottom: MediaQuery.of(
+                                  context,
+                                ).viewInsets.bottom,
+                                left: 20,
+                                right: 20,
+                                top: 20,
+                              ),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text("Reset Password", style: theme.textTheme.titleLarge),
-                                  const SizedBox(height: 20),
+                                  Text(
+                                    "Reset Password",
+                                    style: TextStyle(fontSize: 20),
+                                  ),
+                                  SizedBox(height: 20),
                                   TextField(
-                                    controller: resetEmailController, 
-                                    decoration: const InputDecoration(border: OutlineInputBorder(), label: Text("Email"))
+                                    controller: resetEmailController,
+                                    decoration: InputDecoration(
+                                      border: OutlineInputBorder(),
+                                      label: Text("Email"),
+                                    ),
                                   ),
-                                  const SizedBox(height: 20),
+                                  SizedBox(height: 20),
                                   ElevatedButton(
-                                    onPressed: () => Navigator.pop(context), 
-                                    child: const Text("Send")
+                                    onPressed: () {
+                                      setState(() {
+                                        Navigator.pop(context);
+                                      });
+                                    },
+                                    child: Text("Send"),
                                   ),
-                                  const SizedBox(height: 20),
+                                  SizedBox(height: 20),
                                 ],
                               ),
                             ),
                           );
                         },
-                        child: const Text('Forgot password?'),
+                        child: Text('Forgot password?'),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () {
-                        if (formKey.currentState!.validate()) {
-                        }
+                        setState(() {
+                          if (formKey.currentState!.validate()) {
+                            // Login Code Here
+                          }
+                        });
                       },
-                      child: const Text('LogIn'),
+                      child: Text('LogIn'),
                     ),
                   ],
 
                   if (!isLoginView) ...[
-                    Text('SignUp', style: theme.textTheme.headlineSmall),
-                    const SizedBox(height: 30),
+                    Text('SignUp', style: TextStyle(fontSize: 25)),
+                    SizedBox(height: 30),
                     SizedBox(
                       width: MediaQuery.of(context).size.width * 0.85,
                       child: TextFormField(
                         controller: nameController,
                         validator: validateName,
-                        decoration: const InputDecoration(border: OutlineInputBorder(), label: Text("Name")),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          label: Text("Name"),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     SizedBox(
                       width: MediaQuery.of(context).size.width * 0.85,
                       child: TextFormField(
                         controller: emailController,
                         validator: validateEmail,
-                        decoration: const InputDecoration(border: OutlineInputBorder(), label: Text("Email")),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          label: Text("Email"),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     SizedBox(
                       width: MediaQuery.of(context).size.width * 0.85,
                       child: TextFormField(
@@ -161,18 +177,24 @@ class _AuthPageState extends State<AuthPage> {
                         validator: validatePassword,
                         obscureText: isPasswordObscured,
                         decoration: InputDecoration(
-                          border: const OutlineInputBorder(),
-                          label: const Text("Password"),
+                          border: OutlineInputBorder(),
+                          label: Text("Password"),
                           suffixIcon: IconButton(
-                            onPressed: () { 
-                              setState(() { isPasswordObscured = !isPasswordObscured; }); 
-                            }, 
-                            icon: Icon(isPasswordObscured ? Icons.visibility_off : Icons.visibility)
+                            onPressed: () {
+                              setState(() {
+                                isPasswordObscured = !isPasswordObscured;
+                              });
+                            },
+                            icon: Icon(
+                              isPasswordObscured
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     SizedBox(
                       width: MediaQuery.of(context).size.width * 0.85,
                       child: TextFormField(
@@ -180,33 +202,47 @@ class _AuthPageState extends State<AuthPage> {
                         validator: validateConfirmPassword,
                         obscureText: isConfirmPasswordObscured,
                         decoration: InputDecoration(
-                          border: const OutlineInputBorder(),
-                          label: const Text("Confirm Password"),
+                          border: OutlineInputBorder(),
+                          label: Text("Confirm Password"),
                           suffixIcon: IconButton(
-                            onPressed: () { 
-                              setState(() { isConfirmPasswordObscured = !isConfirmPasswordObscured; }); 
-                            }, 
-                            icon: Icon(isConfirmPasswordObscured ? Icons.visibility_off : Icons.visibility)
+                            onPressed: () {
+                              setState(() {
+                                isConfirmPasswordObscured =
+                                    !isConfirmPasswordObscured;
+                              });
+                            },
+                            icon: Icon(
+                              isConfirmPasswordObscured
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () {
-                        if (formKey.currentState!.validate()) {
-                        }
+                        setState(() {
+                          if (formKey.currentState!.validate()) {
+                            // Sign Up Code Here
+                          }
+                        });
                       },
-                      child: const Text('SignUp'),
+                      child: Text('SignUp'),
                     ),
                   ],
 
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   TextButton(
-                    onPressed: () { 
-                      setState(() { isLoginView = !isLoginView; }); 
+                    onPressed: () {
+                      setState(() {
+                        isLoginView = !isLoginView;
+                      });
                     },
-                    child: Text(isLoginView ? "New here? SignUp" : "Have Account? LogIn"),
+                    child: Text(
+                      isLoginView ? "New here? SignUp" : "Have Account? LogIn",
+                    ),
                   ),
                 ],
               ),
@@ -217,19 +253,31 @@ class _AuthPageState extends State<AuthPage> {
     );
   }
 
-  String? validateName(String? value) {
-    return (value != null && value.isNotEmpty) ? null : "Enter Name";
+  String? validateName(String? s) {
+    if (s != null && s.isNotEmpty)
+      return null;
+    else
+      return "Enter Name";
   }
 
-  String? validateEmail(String? value) {
-    return (value != null && value.contains("@")) ? null : "Not a valid Mail";
+  String? validateEmail(String? s) {
+    if (s != null && s.contains("@"))
+      return null;
+    else
+      return "Invalid Email";
   }
 
-  String? validatePassword(String? value) {
-    return (value != null && value.length > 5) ? null : "Short Password";
+  String? validatePassword(String? s) {
+    if (s != null && s.length > 5)
+      return null;
+    else
+      return "Password Must be at least 5 letters";
   }
 
-  String? validateConfirmPassword(String? value) {
-    return (value != null && value == passwordController.text) ? null : "Passwords do not match";
+  String? validateConfirmPassword(String? s) {
+    if (s != null && s == passwordController.text)
+      return null;
+    else
+      return "Passwords do not match";
   }
 }
