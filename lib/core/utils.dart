@@ -12,31 +12,34 @@ Duration parseInterval(dynamic value) {
 }
 
 String formatInterval(Duration value) {
-  final isNegative = value.isNegative;
-  final absSeconds = value.inSeconds.abs();
-  final hours = absSeconds ~/ 3600;
-  final minutes = (absSeconds % 3600) ~/ 60;
-  final seconds = absSeconds % 60;
-  final micros = value.inMicroseconds.remainder(1000000).abs();
+  final bool isNegative = value.isNegative;
+  final int absSeconds = value.inSeconds.abs();
+  final int hours = absSeconds ~/ 3600;
+  final int minutes = (absSeconds % 3600) ~/ 60;
+  final int seconds = absSeconds % 60;
+  final int micros = value.inMicroseconds.remainder(1000000).abs();
 
-  final sign = isNegative ? '-' : '';
-  final base =
+  String sign = '';
+  if (isNegative) {
+    sign = '-';
+  }
+
+  final String base =
       '$sign${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
 
   if (micros == 0) {
     return base;
   }
 
-  final fraction = micros
-      .toString()
-      .padLeft(6, '0')
-      .replaceFirst(RegExp(r'0+$'), '');
+  String fraction = micros.toString().padLeft(6, '0');
+  fraction = fraction.replaceFirst(RegExp(r'0+$'), '');
   return '$base.$fraction';
 }
 
 Duration _parseIntervalString(String value) {
-  final trimmed = value.trim();
-  final dayMatch = RegExp(r'^(\d+)\s+day[s]?\s+(.+)$').firstMatch(trimmed);
+  final String trimmed = value.trim();
+  final RegExp dayPattern = RegExp(r'^(\d+)\s+day[s]?\s+(.+)$');
+  final RegExpMatch? dayMatch = dayPattern.firstMatch(trimmed);
 
   int days = 0;
   String timePart = trimmed;
@@ -45,18 +48,23 @@ Duration _parseIntervalString(String value) {
     timePart = dayMatch.group(2)!;
   }
 
-  final timeMatch = RegExp(
+  final RegExp timePattern = RegExp(
     r'^(\d{1,2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?$',
-  ).firstMatch(timePart);
+  );
+  final RegExpMatch? timeMatch = timePattern.firstMatch(timePart);
   if (timeMatch == null) {
     throw FormatException('Invalid interval format: $value');
   }
 
-  final hours = int.parse(timeMatch.group(1)!);
-  final minutes = int.parse(timeMatch.group(2)!);
-  final seconds = int.parse(timeMatch.group(3)!);
-  final fraction = timeMatch.group(4);
-  final micros = fraction == null ? 0 : int.parse(fraction.padRight(6, '0'));
+  final int hours = int.parse(timeMatch.group(1)!);
+  final int minutes = int.parse(timeMatch.group(2)!);
+  final int seconds = int.parse(timeMatch.group(3)!);
+  final String? fraction = timeMatch.group(4);
+
+  int micros = 0;
+  if (fraction != null) {
+    micros = int.parse(fraction.padRight(6, '0'));
+  }
 
   return Duration(
     hours: hours + (days * 24),

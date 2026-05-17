@@ -16,7 +16,7 @@ class Habit {
     required this.recurrenceMask,
     required this.currentStreak,
   });
-
+    
   factory Habit.fromJson(Map<String, dynamic> json) {
     return Habit(
       id: json['id'] as String,

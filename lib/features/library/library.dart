@@ -1,468 +1,271 @@
 import 'package:flutter/material.dart';
+import 'package:youmi_dev/models/habit.dart';
 import 'package:youmi_dev/models/labels.dart';
 import 'package:youmi_dev/models/mock_data.dart';
 import 'package:youmi_dev/models/task_folder.dart';
 import 'package:youmi_dev/models/task_template.dart';
-import 'package:youmi_dev/models/habit.dart';
+
+part 'library_widgets.dart';
 
 class LibraryView extends StatefulWidget {
   const LibraryView({super.key});
 
   @override
-  State<LibraryView> createState() => _LibraryViewState();
+  State<LibraryView> createState() {
+    return _LibraryViewState();
+  }
 }
 
 class _LibraryViewState extends State<LibraryView> {
-  late List<TaskTemplate> _templates;
-  late List<Habit> _habits;
-  late List<TaskFolder> _folders;
+  final List<TaskTemplate> _templates = List<TaskTemplate>.from(
+    MockData.taskTemplates,
+  );
+  final List<Habit> _habits = List<Habit>.from(MockData.habits);
+  final List<TaskFolder> _folders = List<TaskFolder>.from(MockData.taskFolders);
+  String _activeEditor = '';
 
-  @override
-  void initState() {
-    super.initState();
-    _templates = List<TaskTemplate>.from(MockData.taskTemplates);
-    _habits = List<Habit>.from(MockData.habits);
-    _folders = List<TaskFolder>.from(MockData.taskFolders);
-  }
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _durationController = TextEditingController();
+  final TextEditingController _subTasksController = TextEditingController();
+  TaskLabel _selectedLabel = TaskLabel.work;
+  String? _selectedFolderId;
+  String? _editingTemplateId;
+
+  final TextEditingController _habitTitleController = TextEditingController();
+  final TextEditingController _maskController = TextEditingController();
+  TaskLabel _habitSelectedLabel = TaskLabel.health;
+  String? _editingHabitId;
+
+  final TextEditingController _folderTitleController = TextEditingController();
+  String? _editingFolderId;
 
   String _newId(String prefix) {
-    return '$prefix-${DateTime.now().microsecondsSinceEpoch}';
+    return '$prefix-${DateTime.now().millisecondsSinceEpoch}';
   }
 
-  Future<void> _showTaskTemplateEditor({TaskTemplate? existing}) async {
-    final titleController = TextEditingController(text: existing?.title ?? '');
-    final durationController = TextEditingController(
-      text: existing == null
-          ? ''
-          : (existing.expectedDuration.inMinutes).toString(),
-    );
-    final subTasksController = TextEditingController(
-      text: existing == null
-          ? ''
-          : existing.subTasks.map((s) => s.title).join(', '),
-    );
-    TaskLabel label = existing?.label ?? TaskLabel.work;
-    String? folderId =
-        existing?.taskFolderId ??
-        (_folders.isNotEmpty ? _folders.first.id : null);
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text(existing == null ? 'New Template' : 'Edit Template'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Title'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<TaskLabel>(
-                  value: label,
-                  decoration: const InputDecoration(labelText: 'Label'),
-                  items: TaskLabel.values
-                      .map(
-                        (l) => DropdownMenuItem(value: l, child: Text(l.name)),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) label = value;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: durationController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Expected duration (minutes)',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: folderId,
-                  decoration: const InputDecoration(labelText: 'Folder'),
-                  items: _folders
-                      .map(
-                        (f) =>
-                            DropdownMenuItem(value: f.id, child: Text(f.title)),
-                      )
-                      .toList(),
-                  onChanged: (value) => folderId = value,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: subTasksController,
-                  decoration: const InputDecoration(
-                    labelText: 'Sub-tasks (comma separated)',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (saved != true) return;
-
-    final minutes = int.tryParse(durationController.text.trim()) ?? 0;
-    final rawSubTasks = subTasksController.text
-        .split(',')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-    final subTasks = rawSubTasks
-        .asMap()
-        .entries
-        .map(
-          (entry) => SubTask(
-            id: _newId('subtask'),
-            title: entry.value,
-            position: entry.key,
-          ),
-        )
-        .toList();
-
+  void _openTemplateEditor(TaskTemplate? existing) {
+    _editingTemplateId = existing?.id;
+    _titleController.text = existing?.title ?? '';
+    _durationController.text =
+        existing?.expectedDuration.inMinutes.toString() ?? '';
+    String subStr = '';
+    if (existing != null) {
+      for (int i = 0; i < existing.subTasks.length; i++) {
+        if (i > 0) subStr += ', ';
+        subStr += existing.subTasks[i].title;
+      }
+    }
+    _subTasksController.text = subStr;
+    _selectedLabel = existing?.label ?? TaskLabel.work;
+    _selectedFolderId =
+        existing?.taskFolderId ?? (_folders.isNotEmpty ? _folders[0].id : null);
     setState(() {
-      final template = TaskTemplate(
-        id: existing?.id ?? _newId('template'),
-        userId: existing?.userId ?? MockData.users.first.id,
-        title: titleController.text.trim().isEmpty
-            ? 'Untitled'
-            : titleController.text.trim(),
-        label: label,
-        expectedDuration: Duration(minutes: minutes),
-        subTasks: subTasks,
-        taskFolderId: folderId,
-      );
+      _activeEditor = 'template';
+    });
+  }
 
-      if (existing == null) {
+  void _openHabitEditor(Habit? existing) {
+    _editingHabitId = existing?.id;
+    _habitTitleController.text = existing?.title ?? '';
+    _maskController.text = existing?.recurrenceMask.toString() ?? '';
+    _habitSelectedLabel = existing?.label ?? TaskLabel.health;
+    setState(() {
+      _activeEditor = 'habit';
+    });
+  }
+
+  void _openFolderEditor(TaskFolder? existing) {
+    _editingFolderId = existing?.id;
+    _folderTitleController.text = existing?.title ?? '';
+    setState(() {
+      _activeEditor = 'folder';
+    });
+  }
+
+  void _openNewTemplate() {
+    _openTemplateEditor(null);
+  }
+
+  void _openNewHabit() {
+    _openHabitEditor(null);
+  }
+
+  void _openNewFolder() {
+    _openFolderEditor(null);
+  }
+
+  void _closeEditor() {
+    setState(() {
+      _activeEditor = '';
+    });
+  }
+
+  void _setSelectedLabel(TaskLabel value) {
+    setState(() {
+      _selectedLabel = value;
+    });
+  }
+
+  void _setHabitSelectedLabel(TaskLabel value) {
+    setState(() {
+      _habitSelectedLabel = value;
+    });
+  }
+
+  void _setSelectedFolderId(String? value) {
+    setState(() {
+      _selectedFolderId = value;
+    });
+  }
+
+  void _saveTemplate() {
+    final int minutes = int.tryParse(_durationController.text.trim()) ?? 0;
+    final List<String> rawParts = _subTasksController.text.split(',');
+    List<SubTask> subTasks = [];
+    for (int i = 0; i < rawParts.length; i++) {
+      final String part = rawParts[i].trim();
+      if (part != '') {
+        subTasks.add(SubTask(id: _newId('subtask'), title: part, position: i));
+      }
+    }
+    final String rawTitle = _titleController.text.trim();
+    final TaskTemplate template = TaskTemplate(
+      id: _editingTemplateId != null ? _editingTemplateId! : _newId('template'),
+      userId: MockData.users.first.id,
+      title: rawTitle == '' ? 'Untitled' : rawTitle,
+      label: _selectedLabel,
+      expectedDuration: Duration(minutes: minutes),
+      subTasks: subTasks,
+      taskFolderId: _selectedFolderId,
+    );
+    setState(() {
+      if (_editingTemplateId == null) {
         _templates.add(template);
       } else {
-        final index = _templates.indexWhere((t) => t.id == existing.id);
-        if (index >= 0) _templates[index] = template;
+        for (int i = 0; i < _templates.length; i++) {
+          if (_templates[i].id == _editingTemplateId) {
+            _templates[i] = template;
+            break;
+          }
+        }
       }
+      _activeEditor = '';
     });
   }
 
-  Future<void> _showHabitEditor({Habit? existing}) async {
-    final titleController = TextEditingController(text: existing?.title ?? '');
-    final maskController = TextEditingController(
-      text: existing == null ? '' : existing.recurrenceMask.toString(),
+  void _saveHabit() {
+    final int mask = int.tryParse(_maskController.text.trim()) ?? 0;
+    final String rawTitle = _habitTitleController.text.trim();
+    final Habit habit = Habit(
+      id: _editingHabitId != null ? _editingHabitId! : _newId('habit'),
+      userId: MockData.users.first.id,
+      title: rawTitle == '' ? 'Untitled' : rawTitle,
+      label: _habitSelectedLabel,
+      recurrenceMask: mask,
+      currentStreak: 0,
     );
-    TaskLabel label = existing?.label ?? TaskLabel.health;
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text(existing == null ? 'New Habit' : 'Edit Habit'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Title'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<TaskLabel>(
-                  value: label,
-                  decoration: const InputDecoration(labelText: 'Label'),
-                  items: TaskLabel.values
-                      .map(
-                        (l) => DropdownMenuItem(value: l, child: Text(l.name)),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) label = value;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: maskController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Recurrence mask (bitmask)',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (saved != true) return;
-
-    final mask = int.tryParse(maskController.text.trim()) ?? 0;
-
     setState(() {
-      final habit = Habit(
-        id: existing?.id ?? _newId('habit'),
-        userId: existing?.userId ?? MockData.users.first.id,
-        title: titleController.text.trim().isEmpty
-            ? 'Untitled'
-            : titleController.text.trim(),
-        label: label,
-        recurrenceMask: mask,
-        currentStreak: existing?.currentStreak ?? 0,
-      );
-
-      if (existing == null) {
+      if (_editingHabitId == null) {
         _habits.add(habit);
       } else {
-        final index = _habits.indexWhere((h) => h.id == existing.id);
-        if (index >= 0) _habits[index] = habit;
+        for (int i = 0; i < _habits.length; i++) {
+          if (_habits[i].id == _editingHabitId) {
+            _habits[i] = habit;
+            break;
+          }
+        }
+      }
+      _activeEditor = '';
+    });
+  }
+
+  void _saveFolder() {
+    final String rawTitle = _folderTitleController.text.trim();
+    final TaskFolder folder = TaskFolder(
+      id: _editingFolderId != null ? _editingFolderId! : _newId('folder'),
+      userId: MockData.users.first.id,
+      title: rawTitle == '' ? 'Untitled' : rawTitle,
+    );
+    setState(() {
+      if (_editingFolderId == null) {
+        _folders.add(folder);
+      } else {
+        for (int i = 0; i < _folders.length; i++) {
+          if (_folders[i].id == _editingFolderId) {
+            _folders[i] = folder;
+            break;
+          }
+        }
+      }
+      _activeEditor = '';
+    });
+  }
+
+  void _deleteTemplate(String id) {
+    setState(() {
+      for (int i = _templates.length - 1; i >= 0; i--) {
+        if (_templates[i].id == id) {
+          _templates.removeAt(i);
+        }
       }
     });
   }
 
-  Future<void> _showFolderEditor({TaskFolder? existing}) async {
-    final titleController = TextEditingController(text: existing?.title ?? '');
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text(existing == null ? 'New Folder' : 'Edit Folder'),
-          content: TextField(
-            controller: titleController,
-            decoration: const InputDecoration(labelText: 'Title'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (saved != true) return;
-
+  void _deleteHabit(String id) {
     setState(() {
-      final folder = TaskFolder(
-        id: existing?.id ?? _newId('folder'),
-        userId: existing?.userId ?? MockData.users.first.id,
-        title: titleController.text.trim().isEmpty
-            ? 'Untitled'
-            : titleController.text.trim(),
-      );
+      for (int i = _habits.length - 1; i >= 0; i--) {
+        if (_habits[i].id == id) {
+          _habits.removeAt(i);
+        }
+      }
+    });
+  }
 
-      if (existing == null) {
-        _folders.add(folder);
-      } else {
-        final index = _folders.indexWhere((f) => f.id == existing.id);
-        if (index >= 0) _folders[index] = folder;
+  void _deleteFolder(String id) {
+    setState(() {
+      for (int i = _folders.length - 1; i >= 0; i--) {
+        if (_folders[i].id == id) {
+          _folders.removeAt(i);
+        }
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    List<Widget> bodyChildren = [];
+    _addActiveEditor(bodyChildren);
+    _addLibrarySection(
+      bodyChildren,
+      'Task Templates',
+      _openNewTemplate,
+      _buildTemplateCards(),
+    );
+    _addLibrarySection(
+      bodyChildren,
+      'Habits',
+      _openNewHabit,
+      _buildHabitCards(),
+    );
+    _addLibrarySection(
+      bodyChildren,
+      'Task Folders',
+      _openNewFolder,
+      _buildFolderCards(),
+    );
+    bodyChildren.add(_buildSystemNote());
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Library'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _SectionHeader(
-            title: 'Task Templates',
-            onAdd: () => _showTaskTemplateEditor(),
-          ),
-          const SizedBox(height: 8),
-          ..._templates.map((template) {
-            final folderTitle = _folders
-                .firstWhere(
-                  (f) => f.id == template.taskFolderId,
-                  orElse: () => _folders.isNotEmpty
-                      ? _folders.first
-                      : TaskFolder(
-                          id: 'none',
-                          userId: 'none',
-                          title: 'No Folder',
-                        ),
-                )
-                .title;
-            return Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ListTile(
-                title: Text(template.title),
-                subtitle: Text(
-                  '${template.label.name} · ${template.expectedDuration.inMinutes} min · $folderTitle',
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () =>
-                          _showTaskTemplateEditor(existing: template),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () {
-                        setState(() {
-                          _templates.removeWhere((t) => t.id == template.id);
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-          const SizedBox(height: 20),
-
-          _SectionHeader(title: 'Habits', onAdd: () => _showHabitEditor()),
-          const SizedBox(height: 8),
-          ..._habits.map((habit) {
-            return Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ListTile(
-                title: Text(habit.title),
-                subtitle: Text(
-                  '${habit.label.name} · mask ${habit.recurrenceMask}',
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () => _showHabitEditor(existing: habit),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () {
-                        setState(() {
-                          _habits.removeWhere((h) => h.id == habit.id);
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-          const SizedBox(height: 20),
-
-          _SectionHeader(
-            title: 'Task Folders',
-            onAdd: () => _showFolderEditor(),
-          ),
-          const SizedBox(height: 8),
-          ..._folders.map((folder) {
-            return Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: ListTile(
-                title: Text(folder.title),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () => _showFolderEditor(existing: folder),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () {
-                        setState(() {
-                          _folders.removeWhere((f) => f.id == folder.id);
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-          const SizedBox(height: 20),
-
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text('System Note'),
-                  SizedBox(height: 6),
-                  Text(
-                    'Future activity instances are generated automatically when habit recurrence masks change.',
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final VoidCallback onAdd;
-
-  const _SectionHeader({required this.title, required this.onAdd});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(title),
-        IconButton(
-          onPressed: onAdd,
-          icon: const Icon(Icons.add_circle_outline),
-        ),
-      ],
+      body: ListView(padding: const EdgeInsets.all(16), children: bodyChildren),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:youmi_dev/features/app_shell.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -133,11 +134,9 @@ class _AuthPageState extends State<AuthPage> {
                     SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () {
-                        setState(() {
-                          if (formKey.currentState!.validate()) {
-                            // Login Code Here
-                          }
-                        });
+                        if (formKey.currentState!.validate()) {
+                          openAppShell();
+                        }
                       },
                       child: Text('LogIn'),
                     ),
@@ -223,11 +222,9 @@ class _AuthPageState extends State<AuthPage> {
                     SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () {
-                        setState(() {
-                          if (formKey.currentState!.validate()) {
-                            // Sign Up Code Here
-                          }
-                        });
+                        if (formKey.currentState!.validate()) {
+                          openAppShell();
+                        }
                       },
                       child: Text('SignUp'),
                     ),
@@ -254,30 +251,45 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   String? validateName(String? s) {
-    if (s != null && s.isNotEmpty)
+    if (s != null && s.isNotEmpty) {
       return null;
-    else
+    } else {
       return "Enter Name";
+    }
   }
 
   String? validateEmail(String? s) {
-    if (s != null && s.contains("@"))
+    if (s != null && s.contains("@")) {
       return null;
-    else
+    } else {
       return "Invalid Email";
+    }
   }
 
   String? validatePassword(String? s) {
-    if (s != null && s.length > 5)
+    if (s != null && s.length > 5) {
       return null;
-    else
+    } else {
       return "Password Must be at least 5 letters";
+    }
   }
 
   String? validateConfirmPassword(String? s) {
-    if (s != null && s == passwordController.text)
+    if (s != null && s == passwordController.text) {
       return null;
-    else
+    } else {
       return "Passwords do not match";
+    }
+  }
+
+  void openAppShell() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return const AppShell();
+        },
+      ),
+    );
   }
 }
