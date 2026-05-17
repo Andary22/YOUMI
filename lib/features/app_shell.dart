@@ -5,7 +5,6 @@ import 'package:youmi_dev/features/library/library.dart';
 import 'package:youmi_dev/features/planner/planner.dart';
 import 'package:youmi_dev/features/settings/settings.dart';
 
-// App shell with bottom navigation and a single active view.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 

@@ -1,46 +1,62 @@
-  import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:youmi_dev/features/settings/settings.dart';
 import 'package:youmi_dev/models/activity_instance.dart';
 import 'package:youmi_dev/models/habit.dart';
 import 'package:youmi_dev/models/mock_data.dart';
 import 'package:youmi_dev/models/task_template.dart';
 
+part 'dashboard_widgets.dart';
+
 class DashboardView extends StatefulWidget {
   const DashboardView({super.key});
 
   @override
-  State<DashboardView> createState() => _DashboardViewState();
+  State<DashboardView> createState() {
+    return _DashboardViewState();
+  }
 }
 
 class _DashboardViewState extends State<DashboardView> {
-  late final List<ActivityInstance> _instances;
-  final Set<String> _completedHabitIds = <String>{};
+  final List<String> _completedHabitIds = [];
   bool _showHabitManager = false;
+  List<ActivityInstance> _instances = [];
+  bool _instancesLoaded = false;
 
-  @override
-  void initState() {
-    super.initState();
+  void _loadInstances() {
+    if (_instancesLoaded) return;
     final now = DateTime.now();
-    _instances = MockData.activityInstances.map((source) {
+    List<ActivityInstance> loadedInstances = [];
+
+    for (int i = 0; i < MockData.activityInstances.length; i++) {
+      final source = MockData.activityInstances[i];
       final scheduled = source.scheduledDate;
-      return ActivityInstance(
-        id: source.id,
-        userId: source.userId,
-        taskTemplateId: source.taskTemplateId,
-        habitId: source.habitId,
-        scheduledDate: DateTime(
-          now.year,
-          now.month,
-          now.day,
-          scheduled.hour,
-          scheduled.minute,
+      loadedInstances.add(
+        ActivityInstance(
+          id: source.id,
+          userId: source.userId,
+          taskTemplateId: source.taskTemplateId,
+          habitId: source.habitId,
+          scheduledDate: DateTime(
+            now.year,
+            now.month,
+            now.day,
+            scheduled.hour,
+            scheduled.minute,
+          ),
+          status: source.status,
+          actualDuration: source.actualDuration,
+          note: source.note,
+          subTaskStates: source.subTaskStates,
         ),
-        status: source.status,
-        actualDuration: source.actualDuration,
-        note: source.note,
-        subTaskStates: source.subTaskStates,
       );
-    }).toList()..sort((a, b) => a.scheduledDate.compareTo(b.scheduledDate));
+    }
+
+    loadedInstances.sort((first, second) {
+      return first.scheduledDate.compareTo(second.scheduledDate);
+    });
+
+    _instances = loadedInstances;
+    _instancesLoaded = true;
   }
 
   String _weekdayName(int weekday) {
@@ -75,38 +91,36 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   String _titleFor(ActivityInstance ai) {
-    if (ai.taskTemplateId != null) {
-      return MockData.taskTemplates
-          .firstWhere(
-            (t) => t.id == ai.taskTemplateId,
-            orElse: () => MockData.taskTemplates.first,
-          )
-          .title;
+    for (final template in MockData.taskTemplates) {
+      if (template.id == ai.taskTemplateId) {
+        return template.title;
+      }
     }
-    if (ai.habitId != null) {
-      return MockData.habits
-          .firstWhere(
-            (h) => h.id == ai.habitId,
-            orElse: () => MockData.habits.first,
-          )
-          .title;
+    for (final habit in MockData.habits) {
+      if (habit.id == ai.habitId) {
+        return habit.title;
+      }
     }
     return 'Unnamed';
   }
 
   TaskTemplate? _templateFor(ActivityInstance ai) {
-    if (ai.taskTemplateId == null) return null;
-    try {
-      return MockData.taskTemplates.firstWhere(
-        (t) => t.id == ai.taskTemplateId,
-      );
-    } catch (_) {
-      return null;
+    for (final template in MockData.taskTemplates) {
+      if (template.id == ai.taskTemplateId) {
+        return template;
+      }
     }
+    return null;
   }
 
   void _toggleTask(ActivityInstance ai) {
-    final index = _instances.indexWhere((item) => item.id == ai.id);
+    int index = -1;
+    for (int i = 0; i < _instances.length; i++) {
+      if (_instances[i].id == ai.id) {
+        index = i;
+        break;
+      }
+    }
     if (index < 0) return;
     final nextStatus = ai.status == ActivityStatus.success
         ? ActivityStatus.pending
@@ -136,6 +150,12 @@ class _DashboardViewState extends State<DashboardView> {
     });
   }
 
+  void _setShowHabitManager(bool value) {
+    setState(() {
+      _showHabitManager = value;
+    });
+  }
+
   String _habitRecurrenceLabel(Habit habit) {
     if (habit.recurrenceMask == 0 || habit.recurrenceMask == 0x1F) {
       return 'Daily';
@@ -148,350 +168,89 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   String _formatTime(DateTime dt) {
-    final hour = dt.hour;
-    final minute = dt.minute.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'PM' : 'AM';
-    final displayHour = hour % 12 == 0 ? 12 : hour % 12;
+    final int hour = dt.hour;
+    final String minute = dt.minute < 10 ? '0${dt.minute}' : '${dt.minute}';
+    final String period = hour >= 12 ? 'PM' : 'AM';
+    final int displayHour = hour % 12 == 0 ? 12 : hour % 12;
     return '$displayHour:$minute $period';
   }
 
   String _formatDuration(Duration? duration) {
     if (duration == null) return '';
     if (duration.inMinutes < 60) return '${duration.inMinutes} min';
-    final hours = duration.inHours;
-    final mins = duration.inMinutes.remainder(60);
-    return mins == 0 ? '${hours}h' : '${hours}h ${mins}min';
+    final int hours = duration.inHours;
+    final int mins = duration.inMinutes.remainder(60);
+    if (mins == 0) {
+      return '${hours}h';
+    }
+    return '${hours}h ${mins}min';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final today = DateTime.now();
-    final todays =
-        _instances
-            .where(
-              (i) =>
-                  i.scheduledDate.year == today.year &&
-                  i.scheduledDate.month == today.month &&
-                  i.scheduledDate.day == today.day,
-            )
-            .toList()
-          ..sort((a, b) => a.scheduledDate.compareTo(b.scheduledDate));
+  int _bestStreak() {
+    int best = 0;
+    for (final habit in MockData.habits) {
+      if (habit.currentStreak > best) {
+        best = habit.currentStreak;
+      }
+    }
+    return best;
+  }
 
-    final total = todays.length;
-    final completed = todays
-        .where((i) => i.status == ActivityStatus.success)
-        .length;
-    final percent = total == 0 ? 0 : (completed / total * 100).toInt();
-    final bestStreak = MockData.habits
-        .map((h) => h.currentStreak)
-        .fold<int>(0, (prev, cur) => prev > cur ? prev : cur);
+  List<ActivityInstance> _todaysInstances(DateTime today) {
+    List<ActivityInstance> todays = [];
+    for (int i = 0; i < _instances.length; i++) {
+      final inst = _instances[i];
+      if (inst.scheduledDate.year == today.year &&
+          inst.scheduledDate.month == today.month &&
+          inst.scheduledDate.day == today.day) {
+        todays.add(inst);
+      }
+    }
+    return todays;
+  }
 
-    return Scaffold(
-      appBar: AppBar(toolbarHeight: 0, elevation: 0),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('YOUMI'),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${_weekdayName(today.weekday)}, ${_monthName(today.month)} ${today.day}, ${today.year}',
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SettingsView(),
-                          ),
-                        ),
-                        icon: const Icon(Icons.settings_outlined),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _StatCard(
-                          label: 'Tasks Done',
-                          value: '$completed/$total',
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _StatCard(label: 'Complete', value: '$percent%'),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _StatCard(
-                          label: 'Best Streak',
-                          value: bestStreak.toString(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Upcoming Tasks'),
-                      TextButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.add, size: 16),
-                        label: const Text('Plan Day'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ...todays.map((instance) {
-                    final template = _templateFor(instance);
-                    final done = instance.status == ActivityStatus.success;
-                    final labelName = template?.label.name ?? '';
-                    final duration = template?.expectedDuration;
-                    return Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 14,
-                      ),
-                      child: Row(
-                        children: [
-                          GestureDetector(
-                            onTap: () => _toggleTask(instance),
-                            child: Container(
-                              width: 26,
-                              height: 26,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(width: 2),
-                              ),
-                              child: done
-                                  ? const Icon(Icons.check, size: 15)
-                                  : const SizedBox.shrink(),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(_titleFor(instance)),
-                                const SizedBox(height: 5),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.schedule, size: 13),
-                                    const SizedBox(width: 4),
-                                    Text(_formatTime(instance.scheduledDate)),
-                                    if (duration != null) ...[
-                                      const SizedBox(width: 6),
-                                      Text(_formatDuration(duration)),
-                                    ],
-                                    if (labelName.isNotEmpty) ...[
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 3,
-                                        ),
-                                        child: Text(labelName),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(_showHabitManager ? 'Habits' : "Today's Habits"),
-                      if (_showHabitManager)
-                        Row(
-                          children: [
-                            TextButton(
-                              onPressed: () =>
-                                  setState(() => _showHabitManager = false),
-                              child: const Text('Back'),
-                            ),
-                            const SizedBox(width: 4),
-                            ElevatedButton.icon(
-                              onPressed: () {},
-                              icon: const Icon(Icons.add, size: 16),
-                              label: const Text('New'),
-                            ),
-                          ],
-                        )
-                      else
-                        TextButton(
-                          onPressed: () =>
-                              setState(() => _showHabitManager = true),
-                          child: const Text('Manage'),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  if (!_showHabitManager)
-                    ...MockData.habits.map((habit) {
-                      final done = _completedHabitIds.contains(habit.id);
-                      return Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 14,
-                        ),
-                        child: Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () => _toggleHabit(habit.id),
-                              child: Container(
-                                width: 26,
-                                height: 26,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(width: 2),
-                                ),
-                                child: done
-                                    ? const Icon(Icons.check, size: 15)
-                                    : const SizedBox.shrink(),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(habit.title),
-                                  const SizedBox(height: 4),
-                                  Text('${habit.currentStreak} day streak'),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                  if (_showHabitManager) ...[
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 12),
-                      child: Text('Build consistency with daily habits'),
-                    ),
-                    ...MockData.habits.map((habit) {
-                      return Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 14,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(habit.title),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${_habitRecurrenceLabel(habit)}  •  ${_habitTimeLabel(habit)}',
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text('${habit.currentStreak} day streak'),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () {},
-                              icon: const Icon(Icons.settings),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                    const SizedBox(height: 12),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text('How Habits Work'),
-                            SizedBox(height: 8),
-                            Text(
-                              '• Habits are automatically added to your daily plan',
-                            ),
-                            Text(
-                              '• Build streaks by completing them consistently',
-                            ),
-                            Text('• Get reminded at your chosen time'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
-          ],
-        ),
+  int _completedCount(List<ActivityInstance> todays) {
+    int completed = 0;
+    for (int i = 0; i < todays.length; i++) {
+      if (todays[i].status == ActivityStatus.success) {
+        completed++;
+      }
+    }
+    return completed;
+  }
+
+  Widget _buildBody(
+    DateTime today,
+    List<ActivityInstance> todays,
+    int completed,
+    int total,
+    int percent,
+  ) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildHeader(today, completed, total, percent, _bestStreak()),
+          const SizedBox(height: 20),
+          _buildUpcomingTasks(todays),
+          const SizedBox(height: 8),
+          _buildHabitsSection(),
+        ],
       ),
     );
   }
-}
-
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _StatCard({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [Text(value), const SizedBox(height: 6), Text(label)],
-        ),
-      ),
+    _loadInstances();
+    final DateTime today = DateTime.now();
+    final List<ActivityInstance> todays = _todaysInstances(today);
+    final int total = todays.length;
+    final int completed = _completedCount(todays);
+    final int percent = total == 0 ? 0 : (completed / total * 100).toInt();
+
+    return Scaffold(
+      appBar: AppBar(toolbarHeight: 0, elevation: 0),
+      body: _buildBody(today, todays, completed, total, percent),
     );
   }
 }
