@@ -1,17 +1,21 @@
 // ExecutionProvider: activity instance queries and execution state updates.
 import 'package:flutter/foundation.dart';
+import 'package:youmi_dev/core/supabase_api.dart';
 import 'package:youmi_dev/models/activity_instance.dart';
 import 'package:youmi_dev/models/labels.dart';
-import 'package:youmi_dev/models/mock_data.dart';
 
 class ExecutionProvider extends ChangeNotifier {
   final List<ActivityInstance> _items = [];
   final Map<DateTime, List<ActivityInstance>> _monthEvents = {};
   DateTime? _monthStart;
   DateTime? _monthEnd;
+  bool _isLoading = false;
+  String? _lastError;
 
-  List<ActivityInstance> get items => _items;
+  List<ActivityInstance> get items => List<ActivityInstance>.unmodifiable(_items);
   Map<DateTime, List<ActivityInstance>> get monthEvents => _monthEvents;
+  bool get isLoading => _isLoading;
+  String? get lastError => _lastError;
 
   List<ActivityInstance> eventsForDate(DateTime date) {
     return _monthEvents[_dateKey(date)] ?? const [];
@@ -39,32 +43,45 @@ class ExecutionProvider extends ChangeNotifier {
     _monthStart = start;
     _monthEnd = end;
 
-    final data = MockData.activityInstances
-        .where(
-          (item) =>
-              !item.scheduledDate.isBefore(start) &&
-              !item.scheduledDate.isAfter(end),
-        )
-        .toList();
+    final userId = SupabaseApi.instance.userId;
+    if (userId == null) {
+      return;
+    }
 
-    _items
-      ..clear()
-      ..addAll(data);
+    _setLoading(true);
+    try {
+      final data = await SupabaseApi.instance.fetchActivityInstances(
+        userId,
+        start,
+        end,
+      );
 
-    _groupInstancesByDate(data);
+      _items
+        ..clear()
+        ..addAll(data);
+
+      _groupInstancesByDate(data);
+      _lastError = null;
+    } catch (e) {
+      _lastError = e.toString();
+      notifyListeners();
+    } finally {
+      _setLoading(false);
+    }
   }
 
-  void addItem(ActivityInstance item) {
-    _items.add(item);
-    if (_isWithinMonth(item.scheduledDate)) {
-      final key = _dateKey(item.scheduledDate);
+  Future<void> addItem(ActivityInstance item) async {
+    final saved = await SupabaseApi.instance.upsertActivityInstance(item);
+    _items.add(saved);
+    if (_isWithinMonth(saved.scheduledDate)) {
+      final key = _dateKey(saved.scheduledDate);
       final bucket = _monthEvents.putIfAbsent(key, () => []);
-      bucket.add(item);
+      bucket.add(saved);
     }
     notifyListeners();
   }
 
-  void updateItemTime(String id, DateTime newTime) {
+  Future<void> updateItemTime(String id, DateTime newTime) async {
     final index = _items.indexWhere((item) => item.id == id);
     if (index == -1) {
       return;
@@ -85,9 +102,12 @@ class ExecutionProvider extends ChangeNotifier {
     );
 
     _groupInstancesByDate(_items);
+    await SupabaseApi.instance.updateActivityInstance(id, {
+      'scheduled_date': newTime.toIso8601String(),
+    });
   }
 
-  void updateItemNote(String id, String? note) {
+  Future<void> updateItemNote(String id, String? note) async {
     final index = _items.indexWhere((item) => item.id == id);
     if (index == -1) {
       return;
@@ -108,9 +128,10 @@ class ExecutionProvider extends ChangeNotifier {
     );
 
     _groupInstancesByDate(_items);
+    await SupabaseApi.instance.updateActivityInstance(id, {'note': note});
   }
 
-  void updateItemLabel(String id, TaskLabel label) {
+  Future<void> updateItemLabel(String id, TaskLabel label) async {
     final index = _items.indexWhere((item) => item.id == id);
     if (index == -1) {
       return;
@@ -131,9 +152,39 @@ class ExecutionProvider extends ChangeNotifier {
     );
 
     _groupInstancesByDate(_items);
+    await SupabaseApi.instance.updateActivityInstance(id, {
+      'label': label.name,
+    });
   }
 
-  void removeItem(String id) {
+  Future<void> updateItemStatus(String id, ActivityStatus status) async {
+    final index = _items.indexWhere((item) => item.id == id);
+    if (index == -1) {
+      return;
+    }
+
+    final current = _items[index];
+    _items[index] = ActivityInstance(
+      id: current.id,
+      userId: current.userId,
+      taskTemplateId: current.taskTemplateId,
+      habitId: current.habitId,
+      label: current.label,
+      scheduledDate: current.scheduledDate,
+      status: status,
+      actualDuration: current.actualDuration,
+      note: current.note,
+      subTaskStates: current.subTaskStates,
+    );
+
+    _groupInstancesByDate(_items);
+    await SupabaseApi.instance.updateActivityInstance(id, {
+      'status': status.name,
+    });
+  }
+
+  Future<void> removeItem(String id) async {
+    await SupabaseApi.instance.deleteActivityInstance(id);
     _items.removeWhere((item) => item.id == id);
     _groupInstancesByDate(_items);
   }
@@ -157,5 +208,10 @@ class ExecutionProvider extends ChangeNotifier {
 
   DateTime _dateKey(DateTime date) {
     return DateTime(date.year, date.month, date.day);
+  }
+
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
   }
 }

@@ -26,9 +26,6 @@ import 'package:youmi_dev/providers/theme_provider.dart';
       return MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (context) {
-            return AnalyticsProvider();
-          }),
-          ChangeNotifierProvider(create: (context) {
             return AppProvider();
           }),
           ChangeNotifierProvider(create: (context) {
@@ -37,6 +34,24 @@ import 'package:youmi_dev/providers/theme_provider.dart';
           ChangeNotifierProvider(create: (context) {
             return ExecutionProvider();
           }),
+          ChangeNotifierProxyProvider2<
+            ExecutionProvider,
+            BlueprintProvider,
+            AnalyticsProvider
+          >(
+            create: (context) {
+              return AnalyticsProvider();
+            },
+            update: (context, execution, blueprint, analytics) {
+              analytics ??= AnalyticsProvider();
+              analytics.syncData(
+                instances: execution.items,
+                templates: blueprint.templates,
+                habits: blueprint.habits,
+              );
+              return analytics;
+            },
+          ),
           ChangeNotifierProvider(create: (context) {
             return ThemeProvider();
           }),

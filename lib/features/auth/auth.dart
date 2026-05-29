@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:youmi_dev/features/app_shell.dart';
+import 'package:youmi_dev/providers/app_provider.dart';
+import 'package:youmi_dev/providers/blueprint_provider.dart';
+import 'package:youmi_dev/providers/execution_provider.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -135,7 +139,7 @@ class _AuthPageState extends State<AuthPage> {
                     ElevatedButton(
                       onPressed: () {
                         if (formKey.currentState!.validate()) {
-                          openAppShell();
+                          _handleLogin();
                         }
                       },
                       child: Text('LogIn'),
@@ -223,7 +227,7 @@ class _AuthPageState extends State<AuthPage> {
                     ElevatedButton(
                       onPressed: () {
                         if (formKey.currentState!.validate()) {
-                          openAppShell();
+                          _handleSignUp();
                         }
                       },
                       child: Text('SignUp'),
@@ -290,6 +294,53 @@ class _AuthPageState extends State<AuthPage> {
           return const AppShell();
         },
       ),
+    );
+  }
+
+  Future<void> _handleLogin() async {
+    final app = Provider.of<AppProvider>(context, listen: false);
+    final success = await app.signIn(
+      emailController.text.trim(),
+      passwordController.text.trim(),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (success && app.currentUser != null) {
+      await _loadUserData(app.currentUser!.id);
+      openAppShell();
+      return;
+    }
+    _showError(app.lastError ?? 'Login failed');
+  }
+
+  Future<void> _handleSignUp() async {
+    final app = Provider.of<AppProvider>(context, listen: false);
+    final success = await app.signUp(
+      emailController.text.trim(),
+      passwordController.text.trim(),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (success && app.currentUser != null) {
+      await _loadUserData(app.currentUser!.id);
+      openAppShell();
+      return;
+    }
+    _showError(app.lastError ?? 'Signup failed');
+  }
+
+  Future<void> _loadUserData(String userId) async {
+    await Provider.of<BlueprintProvider>(context, listen: false)
+        .loadForUser(userId);
+    await Provider.of<ExecutionProvider>(context, listen: false)
+        .fetchMonthData(DateTime.now());
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 }

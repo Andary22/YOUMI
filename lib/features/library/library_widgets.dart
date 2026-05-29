@@ -135,8 +135,9 @@ extension _LibraryWidgets on _LibraryViewState {
 
   List<DropdownMenuItem<String>> _folderItems() {
     List<DropdownMenuItem<String>> items = [];
-    for (int i = 0; i < _folders.length; i++) {
-      final folder = _folders[i];
+    final folders = Provider.of<BlueprintProvider>(context, listen: false).folders;
+    for (int i = 0; i < folders.length; i++) {
+      final folder = folders[i];
       items.add(DropdownMenuItem(value: folder.id, child: Text(folder.title)));
     }
     return items;
@@ -171,15 +172,18 @@ extension _LibraryWidgets on _LibraryViewState {
     );
   }
 
-  List<Widget> _buildTemplateCards() {
+  List<Widget> _buildTemplateCards(
+    List<TaskTemplate> templates,
+    List<TaskFolder> folders,
+  ) {
     List<Widget> cards = [];
-    for (int i = 0; i < _templates.length; i++) {
-      final template = _templates[i];
+    for (int i = 0; i < templates.length; i++) {
+      final template = templates[i];
       cards.add(
         _LibraryCard(
           title: template.title,
           subtitle:
-              '${template.label.name} · ${template.expectedDuration.inMinutes} min · ${_folderTitleFor(template)}',
+              '${template.label.name} · ${template.expectedDuration.inMinutes} min · ${_folderTitleFor(template, folders)}',
           onEdit: () {
             _openTemplateEditor(template);
           },
@@ -192,21 +196,21 @@ extension _LibraryWidgets on _LibraryViewState {
     return cards;
   }
 
-  String _folderTitleFor(TaskTemplate template) {
+  String _folderTitleFor(TaskTemplate template, List<TaskFolder> folders) {
     String folderTitle = 'No Folder';
-    for (int j = 0; j < _folders.length; j++) {
-      if (_folders[j].id == template.taskFolderId) {
-        folderTitle = _folders[j].title;
+    for (int j = 0; j < folders.length; j++) {
+      if (folders[j].id == template.taskFolderId) {
+        folderTitle = folders[j].title;
         break;
       }
     }
     return folderTitle;
   }
 
-  List<Widget> _buildHabitCards() {
+  List<Widget> _buildHabitCards(List<Habit> habits) {
     List<Widget> cards = [];
-    for (int i = 0; i < _habits.length; i++) {
-      final habit = _habits[i];
+    for (int i = 0; i < habits.length; i++) {
+      final habit = habits[i];
       cards.add(
         _LibraryCard(
           title: habit.title,
@@ -223,10 +227,10 @@ extension _LibraryWidgets on _LibraryViewState {
     return cards;
   }
 
-  List<Widget> _buildFolderCards() {
+  List<Widget> _buildFolderCards(List<TaskFolder> folders) {
     List<Widget> cards = [];
-    for (int i = 0; i < _folders.length; i++) {
-      final folder = _folders[i];
+    for (int i = 0; i < folders.length; i++) {
+      final folder = folders[i];
       cards.add(
         _LibraryCard(
           title: folder.title,
