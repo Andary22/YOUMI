@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 // note: removed dependency on `table_calendar` to comply with course-supplied widgets
 import 'package:youmi_dev/models/activity_instance.dart';
 import 'package:youmi_dev/models/labels.dart';
@@ -23,6 +24,7 @@ class _PlannerViewState extends State<PlannerView> {
   static const int _demoMonthRange = 6;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
+  final Uuid _uuid = const Uuid();
 
   @override
   void initState() {
@@ -80,7 +82,11 @@ class _PlannerViewState extends State<PlannerView> {
     final userId = Provider.of<AppProvider>(
       context,
       listen: false,
-    ).currentUser.id;
+    ).currentUser?.id;
+    if (userId == null) {
+      _showAddFeedback(context, 'Sign in to add items');
+      return;
+    }
 
     Navigator.push<_QuickAddResult>(
       context,
@@ -250,7 +256,7 @@ class _PlannerViewState extends State<PlannerView> {
   }
 
   String _newId() {
-    return DateTime.now().microsecondsSinceEpoch.toString();
+    return _uuid.v4();
   }
 
   String _labelText(TaskLabel label) {

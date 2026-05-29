@@ -2,24 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:youmi_dev/models/activity_instance.dart';
 import 'package:youmi_dev/models/habit.dart';
 import 'package:youmi_dev/models/labels.dart';
-import 'package:youmi_dev/models/mock_data.dart';
 import 'package:youmi_dev/models/task_template.dart';
 
 class AnalyticsProvider extends ChangeNotifier {
-  final List<ActivityInstance> _instances;
-  final Map<String, TaskTemplate> _templatesById;
-  final Map<String, Habit> _habitsById;
+  List<ActivityInstance> _instances = [];
+  Map<String, TaskTemplate> _templatesById = {};
+  Map<String, Habit> _habitsById = {};
   DateTimeRange _range;
   TaskLabel? _labelFilter;
 
   AnalyticsProvider({DateTime? referenceDate})
-    : _instances = List<ActivityInstance>.from(MockData.activityInstances),
-      _templatesById = {
-        for (final template in MockData.taskTemplates) template.id: template,
-      },
-      _habitsById = {for (final habit in MockData.habits) habit.id: habit},
-      _range = _defaultRange(referenceDate ?? DateTime.now()),
+    : _range = _defaultRange(referenceDate ?? DateTime.now()),
       _labelFilter = null;
+
+  void syncData({
+    required List<ActivityInstance> instances,
+    required List<TaskTemplate> templates,
+    required List<Habit> habits,
+  }) {
+    _instances = List<ActivityInstance>.from(instances);
+    _templatesById = {for (final template in templates) template.id: template};
+    _habitsById = {for (final habit in habits) habit.id: habit};
+    notifyListeners();
+  }
 
   DateTimeRange get range => _range;
   TaskLabel? get labelFilter => _labelFilter;

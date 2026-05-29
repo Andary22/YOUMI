@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:youmi_dev/features/settings/settings.dart';
 import 'package:youmi_dev/models/activity_instance.dart';
 import 'package:youmi_dev/models/habit.dart';
-import 'package:youmi_dev/models/mock_data.dart';
 import 'package:youmi_dev/models/task_template.dart';
+import 'package:youmi_dev/providers/blueprint_provider.dart';
+import 'package:youmi_dev/providers/execution_provider.dart';
 
 part 'dashboard_widgets.dart';
 
@@ -19,44 +21,14 @@ class DashboardView extends StatefulWidget {
 class _DashboardViewState extends State<DashboardView> {
   final List<String> _completedHabitIds = [];
   bool _showHabitManager = false;
-  List<ActivityInstance> _instances = [];
-  bool _instancesLoaded = false;
 
-  void _loadInstances() {
-    if (_instancesLoaded) return;
-    final now = DateTime.now();
-    List<ActivityInstance> loadedInstances = [];
-
-    for (int i = 0; i < MockData.activityInstances.length; i++) {
-      final source = MockData.activityInstances[i];
-      final scheduled = source.scheduledDate;
-      loadedInstances.add(
-        ActivityInstance(
-          id: source.id,
-          userId: source.userId,
-          taskTemplateId: source.taskTemplateId,
-          habitId: source.habitId,
-          scheduledDate: DateTime(
-            now.year,
-            now.month,
-            now.day,
-            scheduled.hour,
-            scheduled.minute,
-          ),
-          status: source.status,
-          actualDuration: source.actualDuration,
-          note: source.note,
-          subTaskStates: source.subTaskStates,
-        ),
-      );
-    }
-
-    loadedInstances.sort((first, second) {
-      return first.scheduledDate.compareTo(second.scheduledDate);
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ExecutionProvider>(context, listen: false)
+          .fetchMonthData(DateTime.now());
     });
-
-    _instances = loadedInstances;
-    _instancesLoaded = true;
   }
 
   String _weekdayName(int weekday) {
@@ -90,54 +62,32 @@ class _DashboardViewState extends State<DashboardView> {
     return names[month - 1];
   }
 
-  String _titleFor(ActivityInstance ai) {
-    for (final template in MockData.taskTemplates) {
-      if (template.id == ai.taskTemplateId) {
-        return template.title;
-      }
+  String _titleFor(ActivityInstance ai, BlueprintProvider blueprint) {
+    if (ai.taskTemplateId != null) {
+      return blueprint.templateById(ai.taskTemplateId!)?.title ?? 'Unnamed';
     }
-    for (final habit in MockData.habits) {
-      if (habit.id == ai.habitId) {
-        return habit.title;
-      }
+    if (ai.habitId != null) {
+      return blueprint.habitById(ai.habitId!)?.title ?? 'Unnamed';
     }
     return 'Unnamed';
   }
 
-  TaskTemplate? _templateFor(ActivityInstance ai) {
-    for (final template in MockData.taskTemplates) {
-      if (template.id == ai.taskTemplateId) {
-        return template;
-      }
+  TaskTemplate? _templateFor(
+    ActivityInstance ai,
+    BlueprintProvider blueprint,
+  ) {
+    if (ai.taskTemplateId == null) {
+      return null;
     }
-    return null;
+    return blueprint.templateById(ai.taskTemplateId!);
   }
 
   void _toggleTask(ActivityInstance ai) {
-    int index = -1;
-    for (int i = 0; i < _instances.length; i++) {
-      if (_instances[i].id == ai.id) {
-        index = i;
-        break;
-      }
-    }
-    if (index < 0) return;
     final nextStatus = ai.status == ActivityStatus.success
         ? ActivityStatus.pending
         : ActivityStatus.success;
-    setState(() {
-      _instances[index] = ActivityInstance(
-        id: ai.id,
-        userId: ai.userId,
-        taskTemplateId: ai.taskTemplateId,
-        habitId: ai.habitId,
-        scheduledDate: ai.scheduledDate,
-        status: nextStatus,
-        actualDuration: ai.actualDuration,
-        note: ai.note,
-        subTaskStates: ai.subTaskStates,
-      );
-    });
+    Provider.of<ExecutionProvider>(context, listen: false)
+        .updateItemStatus(ai.id, nextStatus);
   }
 
   void _toggleHabit(String habitId) {
@@ -188,7 +138,8 @@ class _DashboardViewState extends State<DashboardView> {
 
   int _bestStreak() {
     int best = 0;
-    for (final habit in MockData.habits) {
+    final habits = Provider.of<BlueprintProvider>(context, listen: false).habits;
+    for (final habit in habits) {
       if (habit.currentStreak > best) {
         best = habit.currentStreak;
       }
@@ -196,10 +147,13 @@ class _DashboardViewState extends State<DashboardView> {
     return best;
   }
 
-  List<ActivityInstance> _todaysInstances(DateTime today) {
+  List<ActivityInstance> _todaysInstances(
+    DateTime today,
+    List<ActivityInstance> items,
+  ) {
     List<ActivityInstance> todays = [];
-    for (int i = 0; i < _instances.length; i++) {
-      final inst = _instances[i];
+    for (int i = 0; i < items.length; i++) {
+      final inst = items[i];
       if (inst.scheduledDate.year == today.year &&
           inst.scheduledDate.month == today.month &&
           inst.scheduledDate.day == today.day) {
@@ -225,15 +179,16 @@ class _DashboardViewState extends State<DashboardView> {
     int completed,
     int total,
     int percent,
+    BlueprintProvider blueprint,
   ) {
     return SingleChildScrollView(
       child: Column(
         children: [
           _buildHeader(today, completed, total, percent, _bestStreak()),
           const SizedBox(height: 20),
-          _buildUpcomingTasks(todays),
+          _buildUpcomingTasks(todays, blueprint),
           const SizedBox(height: 8),
-          _buildHabitsSection(),
+          _buildHabitsSection(blueprint),
         ],
       ),
     );
@@ -241,16 +196,27 @@ class _DashboardViewState extends State<DashboardView> {
 
   @override
   Widget build(BuildContext context) {
-    _loadInstances();
+    final execution = Provider.of<ExecutionProvider>(context);
+    final blueprint = Provider.of<BlueprintProvider>(context);
     final DateTime today = DateTime.now();
-    final List<ActivityInstance> todays = _todaysInstances(today);
+    final List<ActivityInstance> todays = _todaysInstances(
+      today,
+      execution.items,
+    );
     final int total = todays.length;
     final int completed = _completedCount(todays);
     final int percent = total == 0 ? 0 : (completed / total * 100).toInt();
 
     return Scaffold(
       appBar: AppBar(toolbarHeight: 0, elevation: 0),
-      body: _buildBody(today, todays, completed, total, percent),
+      body: _buildBody(
+        today,
+        todays,
+        completed,
+        total,
+        percent,
+        blueprint,
+      ),
     );
   }
 }

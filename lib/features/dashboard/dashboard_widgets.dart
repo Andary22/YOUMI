@@ -68,7 +68,10 @@ extension _DashboardWidgets on _DashboardViewState {
     );
   }
 
-  Widget _buildUpcomingTasks(List<ActivityInstance> todays) {
+  Widget _buildUpcomingTasks(
+    List<ActivityInstance> todays,
+    BlueprintProvider blueprint,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -91,13 +94,13 @@ extension _DashboardWidgets on _DashboardViewState {
             ],
           ),
           const SizedBox(height: 8),
-          _buildTaskList(todays),
+          _buildTaskList(todays, blueprint),
         ],
       ),
     );
   }
 
-  Widget _buildHabitsSection() {
+  Widget _buildHabitsSection(BlueprintProvider blueprint) {
     String sectionTitle = "Today's Habits";
     if (_showHabitManager) {
       sectionTitle = 'Habits';
@@ -137,9 +140,9 @@ extension _DashboardWidgets on _DashboardViewState {
 
     Widget habitsContent;
     if (_showHabitManager) {
-      habitsContent = _buildHabitManagerList();
+      habitsContent = _buildHabitManagerList(blueprint);
     } else {
-      habitsContent = _buildTodayHabitsList();
+      habitsContent = _buildTodayHabitsList(blueprint);
     }
 
     return Padding(
@@ -184,11 +187,14 @@ extension _DashboardWidgets on _DashboardViewState {
     return Row(children: rowItems);
   }
 
-  Widget _buildTaskList(List<ActivityInstance> todays) {
+  Widget _buildTaskList(
+    List<ActivityInstance> todays,
+    BlueprintProvider blueprint,
+  ) {
     List<Widget> cards = [];
     for (int i = 0; i < todays.length; i++) {
       final instance = todays[i];
-      final TaskTemplate? template = _templateFor(instance);
+      final TaskTemplate? template = _templateFor(instance, blueprint);
       final bool done = instance.status == ActivityStatus.success;
       String labelName = '';
       Duration? duration;
@@ -202,7 +208,7 @@ extension _DashboardWidgets on _DashboardViewState {
           onPressed: () {
             _toggleTask(instance);
           },
-          title: _titleFor(instance),
+          title: _titleFor(instance, blueprint),
           subtitle: _buildTaskSubtitleRow(instance, duration, labelName),
         ),
       );
@@ -213,10 +219,11 @@ extension _DashboardWidgets on _DashboardViewState {
     );
   }
 
-  Widget _buildTodayHabitsList() {
+  Widget _buildTodayHabitsList(BlueprintProvider blueprint) {
     List<Widget> cards = [];
-    for (int i = 0; i < MockData.habits.length; i++) {
-      final habit = MockData.habits[i];
+    final habits = blueprint.habits;
+    for (int i = 0; i < habits.length; i++) {
+      final habit = habits[i];
       cards.add(
         _CheckableCard(
           checked: _completedHabitIds.contains(habit.id),
@@ -235,15 +242,16 @@ extension _DashboardWidgets on _DashboardViewState {
     );
   }
 
-  Widget _buildHabitManagerList() {
+  Widget _buildHabitManagerList(BlueprintProvider blueprint) {
     List<Widget> items = [
       const Padding(
         padding: EdgeInsets.only(bottom: 12),
         child: Text('Build consistency with daily habits'),
       ),
     ];
-    for (int i = 0; i < MockData.habits.length; i++) {
-      final habit = MockData.habits[i];
+    final habits = blueprint.habits;
+    for (int i = 0; i < habits.length; i++) {
+      final habit = habits[i];
       items.add(
         Container(
           width: double.infinity,

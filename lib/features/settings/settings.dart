@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:youmi_dev/features/auth/auth.dart';
+import 'package:youmi_dev/providers/app_provider.dart';
 import 'package:youmi_dev/providers/theme_provider.dart';
 import 'package:youmi_dev/style/palettes.dart';
 
@@ -178,7 +180,20 @@ class _SettingsViewState extends State<SettingsView> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: () async {
+                await Provider.of<AppProvider>(context, listen: false)
+                    .signOut();
+                if (!mounted) {
+                  return;
+                }
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AuthPage(),
+                  ),
+                  (route) => false,
+                );
+              },
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),

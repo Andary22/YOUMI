@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import 'package:youmi_dev/models/habit.dart';
 import 'package:youmi_dev/models/labels.dart';
-import 'package:youmi_dev/models/mock_data.dart';
 import 'package:youmi_dev/models/task_folder.dart';
 import 'package:youmi_dev/models/task_template.dart';
+import 'package:youmi_dev/providers/app_provider.dart';
+import 'package:youmi_dev/providers/blueprint_provider.dart';
 
 part 'library_widgets.dart';
 
@@ -17,12 +20,10 @@ class LibraryView extends StatefulWidget {
 }
 
 class _LibraryViewState extends State<LibraryView> {
-  final List<TaskTemplate> _templates = List<TaskTemplate>.from(
-    MockData.taskTemplates,
-  );
-  final List<Habit> _habits = List<Habit>.from(MockData.habits);
-  final List<TaskFolder> _folders = List<TaskFolder>.from(MockData.taskFolders);
   String _activeEditor = '';
+  bool _requestedLoad = false;
+
+  final Uuid _uuid = const Uuid();
 
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _durationController = TextEditingController();
@@ -39,8 +40,8 @@ class _LibraryViewState extends State<LibraryView> {
   final TextEditingController _folderTitleController = TextEditingController();
   String? _editingFolderId;
 
-  String _newId(String prefix) {
-    return '$prefix-${DateTime.now().millisecondsSinceEpoch}';
+  String _newId() {
+    return _uuid.v4();
   }
 
   void _openTemplateEditor(TaskTemplate? existing) {
@@ -58,7 +59,7 @@ class _LibraryViewState extends State<LibraryView> {
     _subTasksController.text = subStr;
     _selectedLabel = existing?.label ?? TaskLabel.work;
     _selectedFolderId =
-        existing?.taskFolderId ?? (_folders.isNotEmpty ? _folders[0].id : null);
+        existing?.taskFolderId ?? _defaultFolderId();
     setState(() {
       _activeEditor = 'template';
     });
@@ -118,140 +119,134 @@ class _LibraryViewState extends State<LibraryView> {
     });
   }
 
-  void _saveTemplate() {
+  Future<void> _saveTemplate() async {
+    final userId = _currentUserId();
+    if (userId == null) {
+      return;
+    }
     final int minutes = int.tryParse(_durationController.text.trim()) ?? 0;
     final List<String> rawParts = _subTasksController.text.split(',');
     List<SubTask> subTasks = [];
     for (int i = 0; i < rawParts.length; i++) {
       final String part = rawParts[i].trim();
       if (part != '') {
-        subTasks.add(SubTask(id: _newId('subtask'), title: part, position: i));
+        subTasks.add(SubTask(id: _newId(), title: part, position: i));
       }
     }
     final String rawTitle = _titleController.text.trim();
     final TaskTemplate template = TaskTemplate(
-      id: _editingTemplateId != null ? _editingTemplateId! : _newId('template'),
-      userId: MockData.users.first.id,
+      id: _editingTemplateId != null ? _editingTemplateId! : _newId(),
+      userId: userId,
       title: rawTitle == '' ? 'Untitled' : rawTitle,
       label: _selectedLabel,
       expectedDuration: Duration(minutes: minutes),
       subTasks: subTasks,
       taskFolderId: _selectedFolderId,
     );
+    await _blueprint(context).saveTemplate(template);
     setState(() {
-      if (_editingTemplateId == null) {
-        _templates.add(template);
-      } else {
-        for (int i = 0; i < _templates.length; i++) {
-          if (_templates[i].id == _editingTemplateId) {
-            _templates[i] = template;
-            break;
-          }
-        }
-      }
       _activeEditor = '';
     });
   }
 
-  void _saveHabit() {
+  Future<void> _saveHabit() async {
+    final userId = _currentUserId();
+    if (userId == null) {
+      return;
+    }
     final int mask = int.tryParse(_maskController.text.trim()) ?? 0;
     final String rawTitle = _habitTitleController.text.trim();
     final Habit habit = Habit(
-      id: _editingHabitId != null ? _editingHabitId! : _newId('habit'),
-      userId: MockData.users.first.id,
+      id: _editingHabitId != null ? _editingHabitId! : _newId(),
+      userId: userId,
       title: rawTitle == '' ? 'Untitled' : rawTitle,
       label: _habitSelectedLabel,
       recurrenceMask: mask,
       currentStreak: 0,
     );
+    await _blueprint(context).saveHabit(habit);
     setState(() {
-      if (_editingHabitId == null) {
-        _habits.add(habit);
-      } else {
-        for (int i = 0; i < _habits.length; i++) {
-          if (_habits[i].id == _editingHabitId) {
-            _habits[i] = habit;
-            break;
-          }
-        }
-      }
       _activeEditor = '';
     });
   }
 
-  void _saveFolder() {
+  Future<void> _saveFolder() async {
+    final userId = _currentUserId();
+    if (userId == null) {
+      return;
+    }
     final String rawTitle = _folderTitleController.text.trim();
     final TaskFolder folder = TaskFolder(
-      id: _editingFolderId != null ? _editingFolderId! : _newId('folder'),
-      userId: MockData.users.first.id,
+      id: _editingFolderId != null ? _editingFolderId! : _newId(),
+      userId: userId,
       title: rawTitle == '' ? 'Untitled' : rawTitle,
     );
+    await _blueprint(context).saveFolder(folder);
     setState(() {
-      if (_editingFolderId == null) {
-        _folders.add(folder);
-      } else {
-        for (int i = 0; i < _folders.length; i++) {
-          if (_folders[i].id == _editingFolderId) {
-            _folders[i] = folder;
-            break;
-          }
-        }
-      }
       _activeEditor = '';
     });
   }
 
-  void _deleteTemplate(String id) {
-    setState(() {
-      for (int i = _templates.length - 1; i >= 0; i--) {
-        if (_templates[i].id == id) {
-          _templates.removeAt(i);
-        }
-      }
-    });
+  Future<void> _deleteTemplate(String id) async {
+    await _blueprint(context).deleteTemplate(id);
   }
 
-  void _deleteHabit(String id) {
-    setState(() {
-      for (int i = _habits.length - 1; i >= 0; i--) {
-        if (_habits[i].id == id) {
-          _habits.removeAt(i);
-        }
-      }
-    });
+  Future<void> _deleteHabit(String id) async {
+    await _blueprint(context).deleteHabit(id);
   }
 
-  void _deleteFolder(String id) {
-    setState(() {
-      for (int i = _folders.length - 1; i >= 0; i--) {
-        if (_folders[i].id == id) {
-          _folders.removeAt(i);
-        }
-      }
-    });
+  Future<void> _deleteFolder(String id) async {
+    await _blueprint(context).deleteFolder(id);
+  }
+
+  BlueprintProvider _blueprint(BuildContext context) {
+    return Provider.of<BlueprintProvider>(context, listen: false);
+  }
+
+  String? _currentUserId() {
+    return Provider.of<AppProvider>(context, listen: false).currentUser?.id;
+  }
+
+  String? _defaultFolderId() {
+    final folders = Provider.of<BlueprintProvider>(context, listen: false).folders;
+    if (folders.isEmpty) {
+      return null;
+    }
+    return folders.first.id;
   }
 
   @override
   Widget build(BuildContext context) {
+    final app = Provider.of<AppProvider>(context, listen: false);
+    final blueprint = Provider.of<BlueprintProvider>(context);
+    if (app.currentUser != null && !_requestedLoad) {
+      _requestedLoad = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _blueprint(context).loadForUser(app.currentUser!.id);
+      });
+    }
+    final templates = blueprint.templates;
+    final habits = blueprint.habits;
+    final folders = blueprint.folders;
     List<Widget> bodyChildren = [];
     _addActiveEditor(bodyChildren);
     _addLibrarySection(
       bodyChildren,
       'Task Templates',
       _openNewTemplate,
-      _buildTemplateCards(),
+      _buildTemplateCards(templates, folders),
     );
     _addLibrarySection(
       bodyChildren,
       'Habits',
       _openNewHabit,
-      _buildHabitCards(),
+      _buildHabitCards(habits),
     );
     _addLibrarySection(
       bodyChildren,
       'Task Folders',
       _openNewFolder,
-      _buildFolderCards(),
+      _buildFolderCards(folders),
     );
     bodyChildren.add(_buildSystemNote());
 
