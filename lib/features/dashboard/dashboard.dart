@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:youmi_dev/features/settings/settings.dart';
 import 'package:youmi_dev/models/activity_instance.dart';
 import 'package:youmi_dev/models/habit.dart';
 import 'package:youmi_dev/models/labels.dart';
@@ -13,7 +12,9 @@ import 'package:uuid/uuid.dart';
 part 'dashboard_widgets.dart';
 
 class DashboardView extends StatefulWidget {
-  const DashboardView({super.key});
+  final VoidCallback? onOpenSettings;
+
+  const DashboardView({super.key, this.onOpenSettings});
 
   @override
   State<DashboardView> createState() {
@@ -178,6 +179,79 @@ class _DashboardViewState extends State<DashboardView> {
     );
     await Provider.of<BlueprintProvider>(context, listen: false)
         .saveHabit(habit);
+  }
+
+  Future<void> _openHabitSettingsDialog(Habit habit) async {
+    final titleController = TextEditingController(text: habit.title);
+    TaskLabel selectedLabel = habit.label;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              title: const Text('Habit Settings'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(labelText: 'Title'),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<TaskLabel>(
+                    value: selectedLabel,
+                    decoration: const InputDecoration(labelText: 'Label'),
+                    items: TaskLabel.values.map((label) {
+                      return DropdownMenuItem(
+                        value: label,
+                        child: Text(label.name),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() {
+                          selectedLabel = value;
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(dialogContext);
+                    String newTitle = titleController.text.trim();
+                    if (newTitle.isEmpty) {
+                      newTitle = habit.title;
+                    }
+                    final updated = Habit(
+                      id: habit.id,
+                      userId: habit.userId,
+                      title: newTitle,
+                      label: selectedLabel,
+                      recurrenceMask: habit.recurrenceMask,
+                      currentStreak: habit.currentStreak,
+                    );
+                    await Provider.of<BlueprintProvider>(context, listen: false)
+                        .saveHabit(updated);
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showMessage(String message) {

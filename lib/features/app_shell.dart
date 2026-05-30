@@ -17,11 +17,17 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _currentIndex = 0;
 
+  void _goToSettings() {
+    setState(() {
+      _currentIndex = 4;
+    });
+  }
+
   late final List<_ShellDestination> _destinations = [
-    const _ShellDestination(
+    _ShellDestination(
       label: 'Dashboard',
       icon: Icons.dashboard_outlined,
-      view: DashboardView(),
+      view: DashboardView(onOpenSettings: _goToSettings),
     ),
     const _ShellDestination(
       label: 'Planner',

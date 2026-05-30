@@ -3,6 +3,7 @@ create extension if not exists "pgcrypto";
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
+  name text,
   theme_pref text not null default 'gruvbox',
   created_at timestamptz not null default now()
 );

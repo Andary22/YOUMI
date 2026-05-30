@@ -30,16 +30,7 @@ extension _DashboardWidgets on _DashboardViewState {
                 ),
               ),
               IconButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) {
-                        return const SettingsView();
-                      },
-                    ),
-                  );
-                },
+                onPressed: widget.onOpenSettings,
                 icon: const Icon(Icons.settings_outlined),
               ),
             ],
@@ -260,7 +251,12 @@ extension _DashboardWidgets on _DashboardViewState {
                   ],
                 ),
               ),
-              IconButton(onPressed: () {}, icon: const Icon(Icons.settings)),
+              IconButton(
+                onPressed: () {
+                  _openHabitSettingsDialog(habit);
+                },
+                icon: const Icon(Icons.settings),
+              ),
             ],
           ),
         ),

@@ -46,12 +46,12 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> signUp(String email, String password) async {
+  Future<bool> signUp(String email, String password, String name) async {
     _setBusy(true);
     try {
       final session = await SupabaseApi.instance.signUp(email, password);
       SupabaseApi.instance.updateSession(session);
-      final profile = await _loadOrCreateProfile(session);
+      final profile = await _loadOrCreateProfile(session, name: name);
       _currentUser = profile;
       _isAuthenticated = true;
       _lastError = null;
@@ -83,7 +83,7 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<AppUser> _loadOrCreateProfile(AuthSession session) async {
+  Future<AppUser> _loadOrCreateProfile(AuthSession session, {String? name}) async {
     final existing = await SupabaseApi.instance.fetchProfile(session.userId);
     if (existing != null) {
       return existing;
@@ -92,8 +92,12 @@ class AppProvider extends ChangeNotifier {
       id: session.userId,
       email: session.email,
       themePref: 'gruvbox_material_dark',
+      name: name ?? '',
     );
-    return SupabaseApi.instance.upsertProfile(fresh);
+    return SupabaseApi.instance.upsertProfile(
+      fresh,
+      includeNameField: name != null,
+    );
   }
 
   Future<bool> updateThemePreference(String themeName) async {
@@ -116,6 +120,61 @@ class AppProvider extends ChangeNotifier {
       _lastError = _formatError(e);
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<bool> updateName(String newName) async {
+    if (_currentUser == null) {
+      _lastError = 'No active user session';
+      notifyListeners();
+      return false;
+    }
+    try {
+      final updated = AppUser(
+        id: _currentUser!.id,
+        email: _currentUser!.email,
+        themePref: _currentUser!.themePref,
+        name: newName,
+      );
+      _currentUser = await SupabaseApi.instance.upsertProfile(
+        updated,
+        includeNameField: true,
+      );
+      _lastError = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _lastError = _formatError(e);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateEmail(String newEmail) async {
+    if (_currentUser == null) {
+      _lastError = 'No active user session';
+      notifyListeners();
+      return false;
+    }
+    _setBusy(true);
+    try {
+      await SupabaseApi.instance.updateEmail(newEmail);
+      final updated = AppUser(
+        id: _currentUser!.id,
+        email: newEmail,
+        themePref: _currentUser!.themePref,
+        name: _currentUser!.name,
+      );
+      _currentUser = await SupabaseApi.instance.upsertProfile(updated);
+      _lastError = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _lastError = _formatError(e);
+      notifyListeners();
+      return false;
+    } finally {
+      _setBusy(false);
     }
   }
 
@@ -161,7 +220,10 @@ class AppProvider extends ChangeNotifier {
         lower.contains('email not confirmed')) {
       return 'Please confirm your email, then try again.';
     }
-    if (lower.contains('user_already_registered')) {
+    if (lower.contains('user_already_registered') ||
+        lower.contains('email already') ||
+        lower.contains('already registered') ||
+        lower.contains('already exists')) {
       return 'An account with this email already exists. Try signing in.';
     }
     if (lower.contains('weak_password')) {

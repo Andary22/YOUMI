@@ -15,59 +15,302 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  bool _profileLoaded = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final user = Provider.of<AppProvider>(context, listen: false).currentUser;
-    if (!_profileLoaded && user != null) {
-      _emailController.text = user.email;
-      _profileLoaded = true;
+  Future<void> _openEditNameDialog() async {
+    final AppProvider appProvider =
+        Provider.of<AppProvider>(context, listen: false);
+    final currentUser = appProvider.currentUser;
+    final String currentName;
+    if (currentUser == null) {
+      currentName = '';
+    } else {
+      currentName = currentUser.name;
     }
+    final controller = TextEditingController(text: currentName);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Update Name'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              prefixIcon: Icon(Icons.person_outline),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final newName = controller.text.trim();
+                if (newName.isEmpty) return;
+                Navigator.pop(dialogContext);
+                final appProvider =
+                    Provider.of<AppProvider>(context, listen: false);
+                final bool success = await appProvider.updateName(newName);
+                if (!mounted) return;
+                if (success) {
+                  _showMessage('Name updated');
+                  return;
+                }
+                final String? lastError = appProvider.lastError;
+                String failureMessage;
+                if (lastError == null) {
+                  failureMessage = 'Name update failed';
+                } else {
+                  failureMessage = lastError;
+                }
+                _showMessage(failureMessage);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _openEditEmailDialog() async {
+    final AppProvider appProvider =
+        Provider.of<AppProvider>(context, listen: false);
+    final currentUser = appProvider.currentUser;
+    final String currentEmail;
+    if (currentUser == null) {
+      currentEmail = '';
+    } else {
+      currentEmail = currentUser.email;
+    }
+    final controller = TextEditingController(text: currentEmail);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Update Email'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              prefixIcon: Icon(Icons.email_outlined),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final String newEmail = controller.text.trim();
+                if (newEmail.isEmpty) return;
+                if (newEmail == currentEmail) {
+                  Navigator.pop(dialogContext);
+                  _showMessage('This is already your current email');
+                  return;
+                }
+                Navigator.pop(dialogContext);
+                final appProvider =
+                    Provider.of<AppProvider>(context, listen: false);
+                final bool success = await appProvider.updateEmail(newEmail);
+                if (!mounted) return;
+                if (success) {
+                  _showMessage('Email updated');
+                  return;
+                }
+                final String? lastError = appProvider.lastError;
+                String failureMessage;
+                if (lastError == null) {
+                  failureMessage = 'Email update failed';
+                } else {
+                  failureMessage = lastError;
+                }
+                _showMessage(failureMessage);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _openUpdatePasswordDialog() async {
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final IconData newPasswordIcon;
+            if (obscureNew) {
+              newPasswordIcon = Icons.visibility_off;
+            } else {
+              newPasswordIcon = Icons.visibility;
+            }
+            final IconData confirmPasswordIcon;
+            if (obscureConfirm) {
+              confirmPasswordIcon = Icons.visibility_off;
+            } else {
+              confirmPasswordIcon = Icons.visibility;
+            }
+            return AlertDialog(
+              title: const Text('Update Password'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: newPasswordController,
+                    obscureText: obscureNew,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'New Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        onPressed: () {
+                          setDialogState(() {
+                            obscureNew = !obscureNew;
+                          });
+                        },
+                        icon: Icon(newPasswordIcon),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: confirmPasswordController,
+                    obscureText: obscureConfirm,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        onPressed: () {
+                          setDialogState(() {
+                            obscureConfirm = !obscureConfirm;
+                          });
+                        },
+                        icon: Icon(confirmPasswordIcon),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final newPass = newPasswordController.text.trim();
+                    final confirmPass = confirmPasswordController.text.trim();
+                    if (newPass.isEmpty) return;
+                    if (newPass != confirmPass) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Passwords do not match'),
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.pop(dialogContext);
+                    final appProvider =
+                        Provider.of<AppProvider>(context, listen: false);
+                    final bool success =
+                        await appProvider.updatePassword(newPass);
+                    if (!mounted) return;
+                    if (success) {
+                      _showMessage('Password updated');
+                      return;
+                    }
+                    final String? lastError = appProvider.lastError;
+                    String failureMessage;
+                    if (lastError == null) {
+                      failureMessage = 'Password update failed';
+                    } else {
+                      failureMessage = lastError;
+                    }
+                    _showMessage(failureMessage);
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = context.watch<ThemeProvider>();
-    final appProvider = context.watch<AppProvider>();
+    final ThemeProvider themeProvider = context.watch<ThemeProvider>();
+    final AppProvider appProvider = context.watch<AppProvider>();
+    final currentUser = appProvider.currentUser;
+    final String displayName;
+    if (currentUser == null) {
+      displayName = '';
+    } else {
+      displayName = currentUser.name.trim();
+    }
+    final String displayEmail;
+    if (currentUser == null) {
+      displayEmail = '';
+    } else {
+      displayEmail = currentUser.email.trim();
+    }
+    final String nameSubtitle;
+    if (displayName.isEmpty) {
+      nameSubtitle = 'Not set';
+    } else {
+      nameSubtitle = displayName;
+    }
+    final String emailSubtitle;
+    if (displayEmail.isEmpty) {
+      emailSubtitle = 'Not set';
+    } else {
+      emailSubtitle = displayEmail;
+    }
+    final VoidCallback? nameTap;
+    if (appProvider.isBusy) {
+      nameTap = null;
+    } else {
+      nameTap = _openEditNameDialog;
+    }
+    final VoidCallback? emailTap;
+    if (appProvider.isBusy) {
+      emailTap = null;
+    } else {
+      emailTap = _openEditEmailDialog;
+    }
+    final VoidCallback? passwordTap;
+    if (appProvider.isBusy) {
+      passwordTap = null;
+    } else {
+      passwordTap = _openUpdatePasswordDialog;
+    }
 
     const palettes = appPalettes;
-
     AppPalette selectedPalette = themeProvider.palette;
     for (int i = 0; i < palettes.length; i++) {
       if (palettes[i].name == themeProvider.palette.name) {
         selectedPalette = palettes[i];
         break;
       }
-    }
-    VoidCallback? updatePasswordPressed;
-    if (appProvider.isBusy) {
-      updatePasswordPressed = null;
-    } else {
-      updatePasswordPressed = () async {
-        final newPassword = _passwordController.text.trim();
-        if (newPassword.isEmpty) {
-          _showMessage('Enter a new password');
-          return;
-        }
-        final bool success = await appProvider.updatePassword(newPassword);
-        if (!mounted) {
-          return;
-        }
-        if (success) {
-          _passwordController.clear();
-          _showMessage('Password updated');
-          return;
-        }
-        String message = 'Password update failed';
-        if (appProvider.lastError != null) {
-          message = appProvider.lastError!;
-        }
-        _showMessage(message);
-      };
     }
 
     return Scaffold(
@@ -83,41 +326,42 @@ class _SettingsViewState extends State<SettingsView> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Profile Information'),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _emailController,
-                    readOnly: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Email Address',
-                      prefixIcon: Icon(Icons.email),
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: 16,
+                    top: 14,
+                    bottom: 4,
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _passwordController,
-                    // obscureText IS in course files
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'New Password',
-                      prefixIcon: Icon(Icons.lock),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: updatePasswordPressed,
-                      child: const Text('Update Password'),
-                    ),
-                  ),
-                ],
-              ),
+                  child: const Text('Profile'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.person_outline),
+                  title: const Text('Name'),
+                  subtitle: Text(nameSubtitle),
+                  trailing: const Icon(Icons.edit_outlined, size: 18),
+                  onTap: nameTap,
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                ListTile(
+                  leading: const Icon(Icons.email_outlined),
+                  title: const Text('Email'),
+                  subtitle: Text(emailSubtitle),
+                  trailing: const Icon(Icons.edit_outlined, size: 18),
+                  onTap: emailTap,
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                ListTile(
+                  leading: const Icon(Icons.lock_outline),
+                  title: const Text('Password'),
+                  subtitle: const Text('Tap to change your password'),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
+                  onTap: passwordTap,
+                ),
+                const SizedBox(height: 4),
+              ],
             ),
           ),
           const SizedBox(height: 12),
@@ -136,7 +380,6 @@ class _SettingsViewState extends State<SettingsView> {
                   Row(
                     children: [
                       const Expanded(child: Text('Theme')),
-                      // DropdownButton IS in course files
                       DropdownButton<AppPalette>(
                         value: selectedPalette,
                         items: palettes.map((palette) {
@@ -146,24 +389,22 @@ class _SettingsViewState extends State<SettingsView> {
                           );
                         }).toList(),
                         onChanged: (palette) async {
-                          if (palette == null) {
-                            return;
-                          }
+                          if (palette == null) return;
                           themeProvider.setPalette(palette);
                           final bool success =
                               await appProvider.updateThemePreference(
                             palette.name,
                           );
-                          if (!mounted) {
-                            return;
-                          }
+                          if (!mounted) return;
                           if (!success) {
-                            String message =
-                                'Failed to save theme preference';
-                            if (appProvider.lastError != null) {
-                              message = appProvider.lastError!;
+                            final String? lastError = appProvider.lastError;
+                            String failureMessage;
+                            if (lastError == null) {
+                              failureMessage = 'Failed to save theme preference';
+                            } else {
+                              failureMessage = lastError;
                             }
-                            _showMessage(message);
+                            _showMessage(failureMessage);
                           }
                         },
                       ),
@@ -186,7 +427,9 @@ class _SettingsViewState extends State<SettingsView> {
                 children: [
                   const Text('Calendar Integration (Optional)'),
                   const SizedBox(height: 8),
-                  const Text('Connect your calendar to sync events automatically'),
+                  const Text(
+                    'Connect your calendar to sync events automatically',
+                  ),
                   const SizedBox(height: 12),
                   ElevatedButton(
                     onPressed: () {},
@@ -221,9 +464,7 @@ class _SettingsViewState extends State<SettingsView> {
               onPressed: () async {
                 await Provider.of<AppProvider>(context, listen: false)
                     .signOut();
-                if (!mounted) {
-                  return;
-                }
+                if (!mounted) return;
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(
