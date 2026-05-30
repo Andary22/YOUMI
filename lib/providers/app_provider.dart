@@ -9,10 +9,21 @@ class AppProvider extends ChangeNotifier {
   bool _isBusy = false;
   String? _lastError;
 
-  AppUser? get currentUser => _currentUser;
-  bool get isAuthenticated => _isAuthenticated;
-  bool get isBusy => _isBusy;
-  String? get lastError => _lastError;
+  AppUser? get currentUser {
+    return _currentUser;
+  }
+
+  bool get isAuthenticated {
+    return _isAuthenticated;
+  }
+
+  bool get isBusy {
+    return _isBusy;
+  }
+
+  String? get lastError {
+    return _lastError;
+  }
 
   Future<bool> signIn(String email, String password) async {
     _setBusy(true);
@@ -26,7 +37,7 @@ class AppProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _lastError = e.toString();
+      _lastError = _formatError(e);
       _isAuthenticated = false;
       notifyListeners();
       return false;
@@ -47,7 +58,7 @@ class AppProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _lastError = e.toString();
+      _lastError = _formatError(e);
       _isAuthenticated = false;
       notifyListeners();
       return false;
@@ -65,7 +76,7 @@ class AppProvider extends ChangeNotifier {
       _lastError = null;
       notifyListeners();
     } catch (e) {
-      _lastError = e.toString();
+      _lastError = _formatError(e);
       notifyListeners();
     } finally {
       _setBusy(false);
@@ -80,9 +91,93 @@ class AppProvider extends ChangeNotifier {
     final fresh = AppUser(
       id: session.userId,
       email: session.email,
-      themePref: 'gruvbox',
+      themePref: 'gruvbox_material_dark',
     );
     return SupabaseApi.instance.upsertProfile(fresh);
+  }
+
+  Future<bool> updateThemePreference(String themeName) async {
+    if (_currentUser == null) {
+      _lastError = 'No active user session';
+      notifyListeners();
+      return false;
+    }
+    try {
+      final updated = AppUser(
+        id: _currentUser!.id,
+        email: _currentUser!.email,
+        themePref: themeName,
+      );
+      _currentUser = await SupabaseApi.instance.upsertProfile(updated);
+      _lastError = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _lastError = _formatError(e);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updatePassword(String newPassword) async {
+    _setBusy(true);
+    try {
+      await SupabaseApi.instance.updatePassword(newPassword);
+      _lastError = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _lastError = _formatError(e);
+      notifyListeners();
+      return false;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  String _formatError(Object error) {
+    if (error is SupabaseApiException) {
+      final String? friendly = _friendlyFromText(error.message);
+      if (friendly != null) {
+        return friendly;
+      }
+      return error.message;
+    }
+    final String text = error.toString();
+    final String? friendly = _friendlyFromText(text);
+    if (friendly != null) {
+      return friendly;
+    }
+    return text;
+  }
+
+  String? _friendlyFromText(String text) {
+    final lower = text.toLowerCase();
+    if (lower.contains('invalid_credentials') ||
+        lower.contains('invalid login credentials')) {
+      return 'Email or password is incorrect.';
+    }
+    if (lower.contains('email_not_confirmed') ||
+        lower.contains('email not confirmed')) {
+      return 'Please confirm your email, then try again.';
+    }
+    if (lower.contains('user_already_registered')) {
+      return 'An account with this email already exists. Try signing in.';
+    }
+    if (lower.contains('weak_password')) {
+      return 'Password is too weak. Try a stronger password.';
+    }
+    if (lower.contains('email_address_invalid')) {
+      return 'Please enter a valid email address.';
+    }
+    if (lower.contains('validation_failed') ||
+        lower.contains('unable to validate email address')) {
+      return 'Please enter a valid email address.';
+    }
+    if (lower.contains('signup_disabled')) {
+      return 'Sign up is currently disabled. Please try again later.';
+    }
+    return null;
   }
 
   void _setBusy(bool value) {

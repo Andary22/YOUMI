@@ -45,28 +45,37 @@ class TaskTemplate {
   });
 
   factory TaskTemplate.fromJson(Map<String, dynamic> json) {
-    final rawSubTasks = (json['sub_tasks'] as List?) ?? const [];
+    List rawSubTasks = const [];
+    if (json['sub_tasks'] is List) {
+      rawSubTasks = json['sub_tasks'] as List;
+    }
+    List<SubTask> subTasks = [];
+    for (int i = 0; i < rawSubTasks.length; i++) {
+      subTasks.add(SubTask.fromJson(rawSubTasks[i] as Map<String, dynamic>));
+    }
     return TaskTemplate(
       id: json['id'] as String,
       userId: json['user_id'] as String,
       title: json['title'] as String,
       label: taskLabelFromDb(json['label'] as String),
       expectedDuration: parseInterval(json['expected_duration']),
-      subTasks: rawSubTasks
-          .map((item) => SubTask.fromJson(item as Map<String, dynamic>))
-          .toList(),
+      subTasks: subTasks,
       taskFolderId: json['task_folder_id'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() {
+    List<Map<String, dynamic>> subTaskPayloads = [];
+    for (int i = 0; i < subTasks.length; i++) {
+      subTaskPayloads.add(subTasks[i].toJson());
+    }
     return {
       'id': id,
       'user_id': userId,
       'title': title,
       'label': taskLabelToDb(label),
       'expected_duration': formatInterval(expectedDuration),
-      'sub_tasks': subTasks.map((task) => task.toJson()).toList(),
+      'sub_tasks': subTaskPayloads,
       'task_folder_id': taskFolderId,
     };
   }

@@ -3,9 +3,12 @@ import 'package:provider/provider.dart';
 import 'package:youmi_dev/features/settings/settings.dart';
 import 'package:youmi_dev/models/activity_instance.dart';
 import 'package:youmi_dev/models/habit.dart';
+import 'package:youmi_dev/models/labels.dart';
 import 'package:youmi_dev/models/task_template.dart';
+import 'package:youmi_dev/providers/app_provider.dart';
 import 'package:youmi_dev/providers/blueprint_provider.dart';
 import 'package:youmi_dev/providers/execution_provider.dart';
+import 'package:uuid/uuid.dart';
 
 part 'dashboard_widgets.dart';
 
@@ -21,6 +24,7 @@ class DashboardView extends StatefulWidget {
 class _DashboardViewState extends State<DashboardView> {
   final List<String> _completedHabitIds = [];
   bool _showHabitManager = false;
+  final Uuid _uuid = const Uuid();
 
   @override
   void initState() {
@@ -64,10 +68,19 @@ class _DashboardViewState extends State<DashboardView> {
 
   String _titleFor(ActivityInstance ai, BlueprintProvider blueprint) {
     if (ai.taskTemplateId != null) {
-      return blueprint.templateById(ai.taskTemplateId!)?.title ?? 'Unnamed';
+      final TaskTemplate? template =
+          blueprint.templateById(ai.taskTemplateId!);
+      if (template != null) {
+        return template.title;
+      }
+      return 'Unnamed';
     }
     if (ai.habitId != null) {
-      return blueprint.habitById(ai.habitId!)?.title ?? 'Unnamed';
+      final Habit? habit = blueprint.habitById(ai.habitId!);
+      if (habit != null) {
+        return habit.title;
+      }
+      return 'Unnamed';
     }
     return 'Unnamed';
   }
@@ -83,9 +96,10 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   void _toggleTask(ActivityInstance ai) {
-    final nextStatus = ai.status == ActivityStatus.success
-        ? ActivityStatus.pending
-        : ActivityStatus.success;
+    ActivityStatus nextStatus = ActivityStatus.success;
+    if (ai.status == ActivityStatus.success) {
+      nextStatus = ActivityStatus.pending;
+    }
     Provider.of<ExecutionProvider>(context, listen: false)
         .updateItemStatus(ai.id, nextStatus);
   }
@@ -106,6 +120,72 @@ class _DashboardViewState extends State<DashboardView> {
     });
   }
 
+  String _newId() {
+    return _uuid.v4();
+  }
+
+  Future<void> _openNewHabitDialog() async {
+    final controller = TextEditingController();
+    final String? title = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('New Habit'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(labelText: 'Title'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context, controller.text.trim());
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+    if (title == null) {
+      return;
+    }
+    String? userId;
+    final user = Provider.of<AppProvider>(context, listen: false).currentUser;
+    if (user != null) {
+      userId = user.id;
+    }
+    if (userId == null) {
+      _showMessage('Please sign in again.');
+      return;
+    }
+    String titleValue = title;
+    if (titleValue.isEmpty) {
+      titleValue = 'Untitled';
+    }
+    final habit = Habit(
+      id: _newId(),
+      userId: userId,
+      title: titleValue,
+      label: TaskLabel.health,
+      recurrenceMask: 0,
+      currentStreak: 0,
+    );
+    await Provider.of<BlueprintProvider>(context, listen: false)
+        .saveHabit(habit);
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   String _habitRecurrenceLabel(Habit habit) {
     if (habit.recurrenceMask == 0 || habit.recurrenceMask == 0x1F) {
       return 'Daily';
@@ -119,15 +199,28 @@ class _DashboardViewState extends State<DashboardView> {
 
   String _formatTime(DateTime dt) {
     final int hour = dt.hour;
-    final String minute = dt.minute < 10 ? '0${dt.minute}' : '${dt.minute}';
-    final String period = hour >= 12 ? 'PM' : 'AM';
-    final int displayHour = hour % 12 == 0 ? 12 : hour % 12;
+    String minute = '${dt.minute}';
+    if (dt.minute < 10) {
+      minute = '0${dt.minute}';
+    }
+    String period = 'AM';
+    if (hour >= 12) {
+      period = 'PM';
+    }
+    int displayHour = hour % 12;
+    if (displayHour == 0) {
+      displayHour = 12;
+    }
     return '$displayHour:$minute $period';
   }
 
   String _formatDuration(Duration? duration) {
-    if (duration == null) return '';
-    if (duration.inMinutes < 60) return '${duration.inMinutes} min';
+    if (duration == null) {
+      return '';
+    }
+    if (duration.inMinutes < 60) {
+      return '${duration.inMinutes} min';
+    }
     final int hours = duration.inHours;
     final int mins = duration.inMinutes.remainder(60);
     if (mins == 0) {
@@ -205,7 +298,10 @@ class _DashboardViewState extends State<DashboardView> {
     );
     final int total = todays.length;
     final int completed = _completedCount(todays);
-    final int percent = total == 0 ? 0 : (completed / total * 100).toInt();
+    int percent = 0;
+    if (total != 0) {
+      percent = (completed / total * 100).toInt();
+    }
 
     return Scaffold(
       appBar: AppBar(toolbarHeight: 0, elevation: 0),

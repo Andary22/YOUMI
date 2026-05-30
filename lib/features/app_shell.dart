@@ -9,7 +9,9 @@ class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  State<AppShell> createState() {
+    return _AppShellState();
+  }
 }
 
 class _AppShellState extends State<AppShell> {
@@ -45,10 +47,24 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> views = [];
+    for (int i = 0; i < _destinations.length; i++) {
+      views.add(_destinations[i].view);
+    }
+    final List<BottomNavigationBarItem> items = [];
+    for (int i = 0; i < _destinations.length; i++) {
+      final destination = _destinations[i];
+      items.add(
+        BottomNavigationBarItem(
+          icon: Icon(destination.icon),
+          label: destination.label,
+        ),
+      );
+    }
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: _destinations.map((destination) => destination.view).toList(),
+        children: views,
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
@@ -58,14 +74,7 @@ class _AppShellState extends State<AppShell> {
             _currentIndex = index;
           });
         },
-        items: _destinations
-            .map(
-              (destination) => BottomNavigationBarItem(
-                icon: Icon(destination.icon),
-                label: destination.label,
-              ),
-            )
-            .toList(),
+        items: items,
       ),
     );
   }

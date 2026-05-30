@@ -15,7 +15,9 @@ class SupabaseApiException implements Exception {
   SupabaseApiException(this.message, {this.statusCode});
 
   @override
-  String toString() => 'SupabaseApiException($statusCode): $message';
+  String toString() {
+    return 'SupabaseApiException($statusCode): $message';
+  }
 }
 
 class AuthSession {
@@ -42,14 +44,28 @@ class SupabaseApi {
   String? _userId;
   String? _email;
 
-  String? get accessToken => _accessToken;
-  String? get userId => _userId;
-  String? get email => _email;
+  String? get accessToken {
+    return _accessToken;
+  }
+
+  String? get userId {
+    return _userId;
+  }
+
+  String? get email {
+    return _email;
+  }
 
   void updateSession(AuthSession? session) {
-    _accessToken = session?.accessToken;
-    _userId = session?.userId;
-    _email = session?.email;
+    if (session == null) {
+      _accessToken = null;
+      _userId = null;
+      _email = null;
+      return;
+    }
+    _accessToken = session.accessToken;
+    _userId = session.userId;
+    _email = session.email;
   }
 
   Future<AuthSession> signUp(String email, String password) async {
@@ -85,6 +101,21 @@ class SupabaseApi {
       throw _parseError(response);
     }
     updateSession(null);
+  }
+
+  Future<void> updatePassword(String newPassword) async {
+    if (_accessToken == null) {
+      throw SupabaseApiException('Not authenticated');
+    }
+    final uri = Uri.parse('${SupabaseConfig.authBaseUrl}/user');
+    final response = await _client.put(
+      uri,
+      headers: _authHeaders(),
+      body: jsonEncode({'password': newPassword}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _parseError(response);
+    }
   }
 
   Future<AppUser?> fetchProfile(String userId) async {
@@ -231,11 +262,13 @@ class SupabaseApi {
     DateTime start,
     DateTime end,
   ) async {
+    final rangeFilter =
+        '(scheduled_date.gte.${start.toIso8601String()},'
+        'scheduled_date.lte.${end.toIso8601String()})';
     final uri = _restUri('activity_instances', {
       'select': '*',
       'user_id': 'eq.$userId',
-      'scheduled_date': 'gte.${start.toIso8601String()}',
-      'scheduled_date': 'lte.${end.toIso8601String()}',
+      'and': rangeFilter,
       'order': 'scheduled_date.asc',
     });
     final response = await _client.get(uri, headers: _restHeaders());
@@ -306,11 +339,16 @@ class SupabaseApi {
         'Signup requires email confirmation. Check your inbox.',
       );
     }
+    String email = '';
+    final String? rawEmail = user['email'] as String?;
+    if (rawEmail != null) {
+      email = rawEmail;
+    }
     return AuthSession(
       accessToken: accessToken,
       refreshToken: refreshToken,
       userId: user['id'] as String,
-      email: user['email'] as String? ?? '',
+      email: email,
     );
   }
 
@@ -346,25 +384,128 @@ class SupabaseApi {
     try {
       final body = _decodeJson(response.body);
       if (body is Map<String, dynamic>) {
-        message = body['error_description'] as String? ??
-            body['message'] as String? ??
-            body['error'] as String? ??
-            message;
+        final String? friendly = _friendlyMessageFromBody(body);
+        if (friendly != null) {
+          message = friendly;
+        } else if (body['error_description'] is String) {
+          message = body['error_description'] as String;
+        } else if (body['message'] is String) {
+          message = body['message'] as String;
+        } else if (body['msg'] is String) {
+          message = body['msg'] as String;
+        } else if (body['error'] is String) {
+          message = body['error'] as String;
+        }
       }
     } catch (_) {
-      message = response.body.isNotEmpty ? response.body : message;
-    }
-    if (response.body.isNotEmpty && message != response.body) {
-      message = '$message | ${response.body}';
+      if (response.body.isNotEmpty) {
+        message = response.body;
+      }
     }
     return SupabaseApiException(message, statusCode: response.statusCode);
+  }
+
+  String? _friendlyMessageFromBody(Map<String, dynamic> body) {
+    String? errorCode = body['error_code'] as String?;
+    if (errorCode == null && body['error code'] is String) {
+      errorCode = body['error code'] as String?;
+    }
+    String? error = body['error'] as String?;
+    String? message = body['message'] as String?;
+    String? msg = body['msg'] as String?;
+    String? code = body['code'] as String?;
+
+    if (errorCode != null) {
+      errorCode = errorCode.toLowerCase();
+    }
+    if (error != null) {
+      error = error.toLowerCase();
+    }
+    if (message != null) {
+      message = message.toLowerCase();
+    }
+    if (msg != null) {
+      msg = msg.toLowerCase();
+    }
+    if (code != null) {
+      code = code.toLowerCase();
+    }
+
+    if (errorCode != null || error != null) {
+      String identifier = '';
+      if (errorCode != null) {
+        identifier = errorCode;
+      } else if (error != null) {
+        identifier = error;
+      }
+      if (identifier.contains('invalid_credentials') ||
+          identifier.contains('invalid_grant')) {
+        return 'Email or password is incorrect.';
+      }
+      if (identifier.contains('email_not_confirmed')) {
+        return 'Please confirm your email, then try again.';
+      }
+      if (identifier.contains('user_already_registered')) {
+        return 'An account with this email already exists. Try signing in.';
+      }
+      if (identifier.contains('weak_password')) {
+        return 'Password is too weak. Try a stronger password.';
+      }
+      if (identifier.contains('email_address_invalid')) {
+        return 'Please enter a valid email address.';
+      }
+      if (identifier.contains('signup_disabled')) {
+        return 'Sign up is currently disabled. Please try again later.';
+      }
+    }
+
+    final buffer = StringBuffer();
+    if (message != null && message.isNotEmpty) {
+      buffer.write(message);
+    }
+    if (msg != null && msg.isNotEmpty) {
+      if (buffer.isNotEmpty) {
+        buffer.write(' ');
+      }
+      buffer.write(msg);
+    }
+    if (code != null && code.isNotEmpty) {
+      if (buffer.isNotEmpty) {
+        buffer.write(' ');
+      }
+      buffer.write(code);
+    }
+    final text = buffer.toString();
+    if (text.contains('invalid login credentials')) {
+      return 'Email or password is incorrect.';
+    }
+    if (text.contains('email not confirmed')) {
+      return 'Please confirm your email, then try again.';
+    }
+    if (text.contains('password should be at least')) {
+      return 'Password is too weak. Try a stronger password.';
+    }
+    return null;
   }
 
   dynamic _decodeJson(String body) {
     if (body.trim().isEmpty) {
       return null;
     }
-    return jsonDecode(body);
+    String cleaned = body;
+    if (cleaned.startsWith('\uFEFF')) {
+      cleaned = cleaned.substring(1);
+    }
+    try {
+      return jsonDecode(cleaned);
+    } catch (_) {
+      final int start = cleaned.indexOf('{');
+      final int end = cleaned.lastIndexOf('}');
+      if (start != -1 && end != -1 && end > start) {
+        return jsonDecode(cleaned.substring(start, end + 1));
+      }
+    }
+    return null;
   }
 
   List<T> _decodeList<T>(
@@ -375,8 +516,10 @@ class SupabaseApi {
     if (payload is! List) {
       return [];
     }
-    return payload
-        .map((item) => fromJson(item as Map<String, dynamic>))
-        .toList();
+    final List<T> items = [];
+    for (int i = 0; i < payload.length; i++) {
+      items.add(fromJson(payload[i] as Map<String, dynamic>));
+    }
+    return items;
   }
 }

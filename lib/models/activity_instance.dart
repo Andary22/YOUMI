@@ -4,7 +4,13 @@ import 'package:youmi_dev/models/labels.dart';
 enum ActivityStatus { success, missed, pending }
 
 ActivityStatus activityStatusFromDb(String value) {
-  return ActivityStatus.values.firstWhere((status) => status.name == value);
+  for (int i = 0; i < ActivityStatus.values.length; i++) {
+    final status = ActivityStatus.values[i];
+    if (status.name == value) {
+      return status;
+    }
+  }
+  return ActivityStatus.pending;
 }
 
 String activityStatusToDb(ActivityStatus status) {
@@ -34,7 +40,7 @@ class ActivityInstance {
     this.actualDuration,
     this.note,
     Map<String, bool>? subTaskStates,
-  }) : subTaskStates = Map<String, bool>.from(subTaskStates ?? const {}) {
+  }) : subTaskStates = _normalizeSubTaskStates(subTaskStates) {
     assert(
       (taskTemplateId == null) != (habitId == null),
       'Exactly one of taskTemplateId or habitId must be set.',
@@ -42,44 +48,65 @@ class ActivityInstance {
   }
 
   factory ActivityInstance.fromJson(Map<String, dynamic> json) {
-    final rawStates =
-        (json['sub_tasks_states'] as Map<String, dynamic>?) ?? const {};
+    Map<String, dynamic> rawStates = const {};
+    if (json['sub_tasks_states'] is Map<String, dynamic>) {
+      rawStates = json['sub_tasks_states'] as Map<String, dynamic>;
+    }
+    TaskLabel? labelValue;
+    if (json['label'] != null) {
+      labelValue = taskLabelFromDb(json['label'] as String);
+    }
+    Duration? actual;
+    if (json['actual_duration'] != null) {
+      actual = parseInterval(json['actual_duration']);
+    }
+    final Map<String, bool> states = {};
+    rawStates.forEach((key, value) {
+      states[key] = value == true;
+    });
     return ActivityInstance(
       id: json['id'] as String,
       userId: json['user_id'] as String,
       taskTemplateId: json['task_template_id'] as String?,
       habitId: json['habit_id'] as String?,
-      label: json['label'] == null
-          ? null
-          : taskLabelFromDb(json['label'] as String),
+      label: labelValue,
       scheduledDate: _parseTimestamp(json['scheduled_date']),
       status: activityStatusFromDb(json['status'] as String),
-      actualDuration: json['actual_duration'] == null
-          ? null
-          : parseInterval(json['actual_duration']),
+      actualDuration: actual,
       note: json['note'] as String?,
-      subTaskStates: rawStates.map(
-        (key, value) => MapEntry(key, value == true),
-      ),
+      subTaskStates: states,
     );
   }
 
   Map<String, dynamic> toJson() {
+    String? labelValue;
+    if (label != null) {
+      labelValue = taskLabelToDb(label!);
+    }
+    String? actualDurationValue;
+    if (actualDuration != null) {
+      actualDurationValue = formatInterval(actualDuration!);
+    }
     return {
       'id': id,
       'user_id': userId,
       'task_template_id': taskTemplateId,
       'habit_id': habitId,
-      'label': label == null ? null : taskLabelToDb(label!),
+      'label': labelValue,
       'scheduled_date': scheduledDate.toIso8601String(),
       'status': activityStatusToDb(status),
-      'actual_duration': actualDuration == null
-          ? null
-          : formatInterval(actualDuration!),
+      'actual_duration': actualDurationValue,
       'note': note,
       'sub_tasks_states': subTaskStates,
     };
   }
+}
+
+Map<String, bool> _normalizeSubTaskStates(Map<String, bool>? states) {
+  if (states == null) {
+    return Map<String, bool>.from(const {});
+  }
+  return Map<String, bool>.from(states);
 }
 
 DateTime _parseTimestamp(dynamic value) {

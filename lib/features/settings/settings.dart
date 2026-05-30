@@ -9,31 +9,32 @@ class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
 
   @override
-  State<SettingsView> createState() => _SettingsViewState();
+  State<SettingsView> createState() {
+    return _SettingsViewState();
+  }
 }
 
 class _SettingsViewState extends State<SettingsView> {
-  // TextEditingController(text:) IS in course files (login.dart uses it)
-  final TextEditingController _nameController =
-      TextEditingController(text: 'John Doe');
-  final TextEditingController _emailController =
-      TextEditingController(text: 'john.doe@example.com');
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _profileLoaded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final user = Provider.of<AppProvider>(context, listen: false).currentUser;
+    if (!_profileLoaded && user != null) {
+      _emailController.text = user.email;
+      _profileLoaded = true;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
+    final appProvider = context.watch<AppProvider>();
 
-    const palettes = <AppPalette>[
-      LightPalette(),
-      DarkPalette(),
-      GruvboxMaterialLightPalette(),
-      GruvboxMaterialDarkPalette(),
-      CatppuccinLattePalette(),
-      CatppuccinMochaPalette(),
-      NordLightPalette(),
-      NordDarkPalette(),
-    ];
+    const palettes = appPalettes;
 
     AppPalette selectedPalette = themeProvider.palette;
     for (int i = 0; i < palettes.length; i++) {
@@ -42,15 +43,36 @@ class _SettingsViewState extends State<SettingsView> {
         break;
       }
     }
+    VoidCallback? updatePasswordPressed;
+    if (appProvider.isBusy) {
+      updatePasswordPressed = null;
+    } else {
+      updatePasswordPressed = () async {
+        final newPassword = _passwordController.text.trim();
+        if (newPassword.isEmpty) {
+          _showMessage('Enter a new password');
+          return;
+        }
+        final bool success = await appProvider.updatePassword(newPassword);
+        if (!mounted) {
+          return;
+        }
+        if (success) {
+          _passwordController.clear();
+          _showMessage('Password updated');
+          return;
+        }
+        String message = 'Password update failed';
+        if (appProvider.lastError != null) {
+          message = appProvider.lastError!;
+        }
+        _showMessage(message);
+      };
+    }
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+        automaticallyImplyLeading: false,
         title: const Text('Settings'),
         elevation: 0,
       ),
@@ -68,17 +90,9 @@ class _SettingsViewState extends State<SettingsView> {
                 children: [
                   const Text('Profile Information'),
                   const SizedBox(height: 12),
-                  // TextField IS in course files
-                  TextField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Full Name',
-                      prefixIcon: Icon(Icons.person),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   TextField(
                     controller: _emailController,
+                    readOnly: true,
                     decoration: const InputDecoration(
                       labelText: 'Email Address',
                       prefixIcon: Icon(Icons.email),
@@ -90,8 +104,16 @@ class _SettingsViewState extends State<SettingsView> {
                     // obscureText IS in course files
                     obscureText: true,
                     decoration: const InputDecoration(
-                      labelText: 'Password',
+                      labelText: 'New Password',
                       prefixIcon: Icon(Icons.lock),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: updatePasswordPressed,
+                      child: const Text('Update Password'),
                     ),
                   ),
                 ],
@@ -123,9 +145,25 @@ class _SettingsViewState extends State<SettingsView> {
                             child: Text(palette.name),
                           );
                         }).toList(),
-                        onChanged: (palette) {
-                          if (palette != null) {
-                            themeProvider.setPalette(palette);
+                        onChanged: (palette) async {
+                          if (palette == null) {
+                            return;
+                          }
+                          themeProvider.setPalette(palette);
+                          final bool success =
+                              await appProvider.updateThemePreference(
+                            palette.name,
+                          );
+                          if (!mounted) {
+                            return;
+                          }
+                          if (!success) {
+                            String message =
+                                'Failed to save theme preference';
+                            if (appProvider.lastError != null) {
+                              message = appProvider.lastError!;
+                            }
+                            _showMessage(message);
                           }
                         },
                       ),
@@ -189,9 +227,13 @@ class _SettingsViewState extends State<SettingsView> {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const AuthPage(),
+                    builder: (context) {
+                      return const AuthPage();
+                    },
                   ),
-                  (route) => false,
+                  (route) {
+                    return false;
+                  },
                 );
               },
               style: ElevatedButton.styleFrom(
@@ -210,6 +252,12 @@ class _SettingsViewState extends State<SettingsView> {
           const SizedBox(height: 40),
         ],
       ),
+    );
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 }

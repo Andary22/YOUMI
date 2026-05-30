@@ -45,10 +45,16 @@ class _LibraryViewState extends State<LibraryView> {
   }
 
   void _openTemplateEditor(TaskTemplate? existing) {
-    _editingTemplateId = existing?.id;
-    _titleController.text = existing?.title ?? '';
-    _durationController.text =
-        existing?.expectedDuration.inMinutes.toString() ?? '';
+    if (existing != null) {
+      _editingTemplateId = existing.id;
+      _titleController.text = existing.title;
+      _durationController.text =
+          existing.expectedDuration.inMinutes.toString();
+    } else {
+      _editingTemplateId = null;
+      _titleController.text = '';
+      _durationController.text = '';
+    }
     String subStr = '';
     if (existing != null) {
       for (int i = 0; i < existing.subTasks.length; i++) {
@@ -57,27 +63,43 @@ class _LibraryViewState extends State<LibraryView> {
       }
     }
     _subTasksController.text = subStr;
-    _selectedLabel = existing?.label ?? TaskLabel.work;
-    _selectedFolderId =
-        existing?.taskFolderId ?? _defaultFolderId();
+    if (existing != null) {
+      _selectedLabel = existing.label;
+      _selectedFolderId = existing.taskFolderId;
+    } else {
+      _selectedLabel = TaskLabel.work;
+      _selectedFolderId = _defaultFolderId();
+    }
     setState(() {
       _activeEditor = 'template';
     });
   }
 
   void _openHabitEditor(Habit? existing) {
-    _editingHabitId = existing?.id;
-    _habitTitleController.text = existing?.title ?? '';
-    _maskController.text = existing?.recurrenceMask.toString() ?? '';
-    _habitSelectedLabel = existing?.label ?? TaskLabel.health;
+    if (existing != null) {
+      _editingHabitId = existing.id;
+      _habitTitleController.text = existing.title;
+      _maskController.text = existing.recurrenceMask.toString();
+      _habitSelectedLabel = existing.label;
+    } else {
+      _editingHabitId = null;
+      _habitTitleController.text = '';
+      _maskController.text = '';
+      _habitSelectedLabel = TaskLabel.health;
+    }
     setState(() {
       _activeEditor = 'habit';
     });
   }
 
   void _openFolderEditor(TaskFolder? existing) {
-    _editingFolderId = existing?.id;
-    _folderTitleController.text = existing?.title ?? '';
+    if (existing != null) {
+      _editingFolderId = existing.id;
+      _folderTitleController.text = existing.title;
+    } else {
+      _editingFolderId = null;
+      _folderTitleController.text = '';
+    }
     setState(() {
       _activeEditor = 'folder';
     });
@@ -124,7 +146,12 @@ class _LibraryViewState extends State<LibraryView> {
     if (userId == null) {
       return;
     }
-    final int minutes = int.tryParse(_durationController.text.trim()) ?? 0;
+    int minutes = 0;
+    final int? parsedMinutes =
+        int.tryParse(_durationController.text.trim());
+    if (parsedMinutes != null) {
+      minutes = parsedMinutes;
+    }
     final List<String> rawParts = _subTasksController.text.split(',');
     List<SubTask> subTasks = [];
     for (int i = 0; i < rawParts.length; i++) {
@@ -134,10 +161,18 @@ class _LibraryViewState extends State<LibraryView> {
       }
     }
     final String rawTitle = _titleController.text.trim();
+    String templateId = _newId();
+    if (_editingTemplateId != null) {
+      templateId = _editingTemplateId!;
+    }
+    String title = rawTitle;
+    if (title == '') {
+      title = 'Untitled';
+    }
     final TaskTemplate template = TaskTemplate(
-      id: _editingTemplateId != null ? _editingTemplateId! : _newId(),
+      id: templateId,
       userId: userId,
-      title: rawTitle == '' ? 'Untitled' : rawTitle,
+      title: title,
       label: _selectedLabel,
       expectedDuration: Duration(minutes: minutes),
       subTasks: subTasks,
@@ -154,12 +189,24 @@ class _LibraryViewState extends State<LibraryView> {
     if (userId == null) {
       return;
     }
-    final int mask = int.tryParse(_maskController.text.trim()) ?? 0;
+    int mask = 0;
+    final int? parsedMask = int.tryParse(_maskController.text.trim());
+    if (parsedMask != null) {
+      mask = parsedMask;
+    }
     final String rawTitle = _habitTitleController.text.trim();
+    String habitId = _newId();
+    if (_editingHabitId != null) {
+      habitId = _editingHabitId!;
+    }
+    String title = rawTitle;
+    if (title == '') {
+      title = 'Untitled';
+    }
     final Habit habit = Habit(
-      id: _editingHabitId != null ? _editingHabitId! : _newId(),
+      id: habitId,
       userId: userId,
-      title: rawTitle == '' ? 'Untitled' : rawTitle,
+      title: title,
       label: _habitSelectedLabel,
       recurrenceMask: mask,
       currentStreak: 0,
@@ -176,10 +223,18 @@ class _LibraryViewState extends State<LibraryView> {
       return;
     }
     final String rawTitle = _folderTitleController.text.trim();
+    String folderId = _newId();
+    if (_editingFolderId != null) {
+      folderId = _editingFolderId!;
+    }
+    String title = rawTitle;
+    if (title == '') {
+      title = 'Untitled';
+    }
     final TaskFolder folder = TaskFolder(
-      id: _editingFolderId != null ? _editingFolderId! : _newId(),
+      id: folderId,
       userId: userId,
-      title: rawTitle == '' ? 'Untitled' : rawTitle,
+      title: title,
     );
     await _blueprint(context).saveFolder(folder);
     setState(() {
@@ -204,11 +259,16 @@ class _LibraryViewState extends State<LibraryView> {
   }
 
   String? _currentUserId() {
-    return Provider.of<AppProvider>(context, listen: false).currentUser?.id;
+    final user = Provider.of<AppProvider>(context, listen: false).currentUser;
+    if (user != null) {
+      return user.id;
+    }
+    return null;
   }
 
   String? _defaultFolderId() {
-    final folders = Provider.of<BlueprintProvider>(context, listen: false).folders;
+    final folders =
+        Provider.of<BlueprintProvider>(context, listen: false).folders;
     if (folders.isEmpty) {
       return null;
     }
@@ -253,12 +313,7 @@ class _LibraryViewState extends State<LibraryView> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Library'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+        automaticallyImplyLeading: false,
       ),
       body: ListView(padding: const EdgeInsets.all(16), children: bodyChildren),
     );
