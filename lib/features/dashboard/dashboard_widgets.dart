@@ -77,22 +77,7 @@ extension _DashboardWidgets on _DashboardViewState {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Upcoming Tasks'),
-              TextButton(
-                onPressed: () {},
-                child: Row(
-                  children: const [
-                    Icon(Icons.add, size: 16),
-                    SizedBox(width: 4),
-                    Text('Plan Day'),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          const Text('Upcoming Tasks'),
           const SizedBox(height: 8),
           _buildTaskList(todays, blueprint),
         ],
@@ -118,7 +103,9 @@ extension _DashboardWidgets on _DashboardViewState {
           ),
           const SizedBox(width: 4),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: () {
+              _openNewHabitDialog();
+            },
             child: Row(
               children: const [
                 Icon(Icons.add, size: 16),

@@ -45,16 +45,20 @@ class _PlannerViewState extends State<PlannerView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Planner',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: Text('Planner', style: _plannerTitleStyle(theme)),
         centerTitle: true,
       ),
       body: _buildScheduleTab(theme, execution),
     );
+  }
+
+  TextStyle _plannerTitleStyle(ThemeData theme) {
+    TextStyle style = const TextStyle(fontWeight: FontWeight.bold);
+    final TextStyle? baseStyle = theme.textTheme.titleMedium;
+    if (baseStyle != null) {
+      style = baseStyle.copyWith(fontWeight: FontWeight.bold);
+    }
+    return style;
   }
 
   void _goToPreviousMonth() {
@@ -79,14 +83,19 @@ class _PlannerViewState extends State<PlannerView> {
   void _openQuickAddPage(DateTime date) {
     final blueprint = Provider.of<BlueprintProvider>(context, listen: false);
     final execution = Provider.of<ExecutionProvider>(context, listen: false);
-    final userId = Provider.of<AppProvider>(
+    String? userId;
+    final user = Provider.of<AppProvider>(
       context,
       listen: false,
-    ).currentUser?.id;
+    ).currentUser;
+    if (user != null) {
+      userId = user.id;
+    }
     if (userId == null) {
       _showAddFeedback(context, 'Sign in to add items');
       return;
     }
+    final String resolvedUserId = userId;
 
     Navigator.push<_QuickAddResult>(
       context,
@@ -118,7 +127,7 @@ class _PlannerViewState extends State<PlannerView> {
         execution.addItem(
           ActivityInstance(
             id: _newId(),
-            userId: userId,
+            userId: resolvedUserId,
             taskTemplateId: template.id,
             label: template.label,
             scheduledDate: DateTime(date.year, date.month, date.day, 9, 0),
@@ -135,7 +144,7 @@ class _PlannerViewState extends State<PlannerView> {
         execution.addItem(
           ActivityInstance(
             id: _newId(),
-            userId: userId,
+            userId: resolvedUserId,
             habitId: habit.id,
             label: habit.label,
             scheduledDate: DateTime(date.year, date.month, date.day),
@@ -161,7 +170,11 @@ class _PlannerViewState extends State<PlannerView> {
       context,
       MaterialPageRoute(
         builder: (context) {
-          return _NoteEditorPage(initialNote: item.note ?? '');
+          String initialNote = '';
+          if (item.note != null) {
+            initialNote = item.note!;
+          }
+          return _NoteEditorPage(initialNote: initialNote);
         },
       ),
     ).then((result) {
@@ -206,10 +219,18 @@ class _PlannerViewState extends State<PlannerView> {
 
   String _resolveTitle(ActivityInstance item, BlueprintProvider blueprint) {
     if (item.taskTemplateId != null) {
-      return blueprint.templateById(item.taskTemplateId!)?.title ?? 'Task';
+      final template = blueprint.templateById(item.taskTemplateId!);
+      if (template != null) {
+        return template.title;
+      }
+      return 'Task';
     }
     if (item.habitId != null) {
-      return blueprint.habitById(item.habitId!)?.title ?? 'Habit';
+      final habit = blueprint.habitById(item.habitId!);
+      if (habit != null) {
+        return habit.title;
+      }
+      return 'Habit';
     }
     return 'Activity';
   }
@@ -219,11 +240,18 @@ class _PlannerViewState extends State<PlannerView> {
       return item.label!;
     }
     if (item.taskTemplateId != null) {
-      return blueprint.templateById(item.taskTemplateId!)?.label ??
-          TaskLabel.work;
+      final template = blueprint.templateById(item.taskTemplateId!);
+      if (template != null) {
+        return template.label;
+      }
+      return TaskLabel.work;
     }
     if (item.habitId != null) {
-      return blueprint.habitById(item.habitId!)?.label ?? TaskLabel.work;
+      final habit = blueprint.habitById(item.habitId!);
+      if (habit != null) {
+        return habit.label;
+      }
+      return TaskLabel.work;
     }
     return TaskLabel.work;
   }

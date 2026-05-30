@@ -2,7 +2,10 @@ part of 'planner.dart';
 
 extension _PlannerWidgets on _PlannerViewState {
   Widget _buildScheduleTab(ThemeData theme, ExecutionProvider execution) {
-    final selected = _selectedDay ?? _focusedDay;
+    DateTime selected = _focusedDay;
+    if (_selectedDay != null) {
+      selected = _selectedDay!;
+    }
     final eventsForSelected = execution.eventsForDate(selected);
     List<Widget> children = [];
 
@@ -135,9 +138,15 @@ extension _PlannerWidgets on _PlannerViewState {
     final isToday = _isSameDay(day, DateTime.now());
     final inMonth = day.month == _focusedDay.month;
     final events = execution.eventsForDate(day);
-    final textColor = inMonth
-        ? theme.textTheme.bodyMedium?.color ?? Colors.black
-        : theme.disabledColor;
+    Color baseColor = Colors.black;
+    final TextStyle? bodyStyle = theme.textTheme.bodyMedium;
+    if (bodyStyle != null && bodyStyle.color != null) {
+      baseColor = bodyStyle.color!;
+    }
+    Color textColor = theme.disabledColor;
+    if (inMonth) {
+      textColor = baseColor;
+    }
 
     BoxDecoration? decoration;
     if (isSelected) {
@@ -161,9 +170,7 @@ extension _PlannerWidgets on _PlannerViewState {
         alignment: Alignment.center,
         child: Text(
           '${day.day}',
-          style: TextStyle(
-            color: isSelected ? theme.colorScheme.onPrimary : textColor,
-          ),
+          style: TextStyle(color: _dayTextColor(isSelected, theme, textColor)),
         ),
       ),
     );
@@ -206,6 +213,16 @@ extension _PlannerWidgets on _PlannerViewState {
       );
     }
 
+    TextStyle? labelStyle = theme.textTheme.bodySmall;
+    if (labelStyle != null) {
+      labelStyle = labelStyle.copyWith(color: theme.colorScheme.primary);
+    }
+    VoidCallback? scheduleAction;
+    if (!isHabit) {
+      scheduleAction = () {
+        _editItemTime(item);
+      };
+    }
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(title),
@@ -220,9 +237,7 @@ extension _PlannerWidgets on _PlannerViewState {
             },
             child: Text(
               '# ${_labelText(label)}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.primary,
-              ),
+              style: labelStyle,
             ),
           ),
         ],
@@ -232,11 +247,7 @@ extension _PlannerWidgets on _PlannerViewState {
         children: [
           IconButton(
             icon: const Icon(Icons.schedule),
-            onPressed: isHabit
-                ? null
-                : () {
-                    _editItemTime(item);
-                  },
+            onPressed: scheduleAction,
           ),
           IconButton(
             icon: const Icon(Icons.note_alt_outlined),
@@ -257,5 +268,16 @@ extension _PlannerWidgets on _PlannerViewState {
         ],
       ),
     );
+  }
+
+  Color _dayTextColor(
+    bool isSelected,
+    ThemeData theme,
+    Color fallback,
+  ) {
+    if (isSelected) {
+      return theme.colorScheme.onPrimary;
+    }
+    return fallback;
   }
 }

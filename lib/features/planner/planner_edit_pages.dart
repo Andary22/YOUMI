@@ -104,7 +104,11 @@ class _NoteEditorPageState extends State<_NoteEditorPage> {
             ElevatedButton(
               onPressed: () {
                 final trimmed = _controller.text.trim();
-                Navigator.pop(context, trimmed.isEmpty ? null : trimmed);
+                if (trimmed.isEmpty) {
+                  Navigator.pop(context, null);
+                } else {
+                  Navigator.pop(context, trimmed);
+                }
               },
               child: const Text('Save'),
             ),

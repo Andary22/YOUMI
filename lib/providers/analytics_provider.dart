@@ -12,8 +12,12 @@ class AnalyticsProvider extends ChangeNotifier {
   TaskLabel? _labelFilter;
 
   AnalyticsProvider({DateTime? referenceDate})
-    : _range = _defaultRange(referenceDate ?? DateTime.now()),
-      _labelFilter = null;
+      : _range = _defaultRange(DateTime.now()),
+        _labelFilter = null {
+    if (referenceDate != null) {
+      _range = _defaultRange(referenceDate);
+    }
+  }
 
   void syncData({
     required List<ActivityInstance> instances,
@@ -21,34 +25,65 @@ class AnalyticsProvider extends ChangeNotifier {
     required List<Habit> habits,
   }) {
     _instances = List<ActivityInstance>.from(instances);
-    _templatesById = {for (final template in templates) template.id: template};
-    _habitsById = {for (final habit in habits) habit.id: habit};
+    _templatesById = {};
+    for (int i = 0; i < templates.length; i++) {
+      final template = templates[i];
+      _templatesById[template.id] = template;
+    }
+    _habitsById = {};
+    for (int i = 0; i < habits.length; i++) {
+      final habit = habits[i];
+      _habitsById[habit.id] = habit;
+    }
     notifyListeners();
   }
 
-  DateTimeRange get range => _range;
-  TaskLabel? get labelFilter => _labelFilter;
+  DateTimeRange get range {
+    return _range;
+  }
+
+  TaskLabel? get labelFilter {
+    return _labelFilter;
+  }
 
   List<ActivityInstance> get completedItems {
-    final items = _filteredInstances()
-        .where((item) => item.status == ActivityStatus.success)
-        .toList();
-    items.sort((a, b) => b.scheduledDate.compareTo(a.scheduledDate));
+    final List<ActivityInstance> items = [];
+    final List<ActivityInstance> filtered = _filteredInstances();
+    for (int i = 0; i < filtered.length; i++) {
+      final item = filtered[i];
+      if (item.status == ActivityStatus.success) {
+        items.add(item);
+      }
+    }
+    items.sort((a, b) {
+      return b.scheduledDate.compareTo(a.scheduledDate);
+    });
     return items;
   }
 
   List<LabelCount> get completionCountsByLabel {
-    final counts = <TaskLabel, int>{
-      for (final label in TaskLabel.values) label: 0,
-    };
+    final Map<TaskLabel, int> counts = {};
+    for (int i = 0; i < TaskLabel.values.length; i++) {
+      counts[TaskLabel.values[i]] = 0;
+    }
     for (final item in completedItems) {
       final label = _resolveLabel(item);
-      counts[label] = (counts[label] ?? 0) + 1;
+      int current = 0;
+      if (counts[label] != null) {
+        current = counts[label]!;
+      }
+      counts[label] = current + 1;
     }
-    return [
-      for (final label in TaskLabel.values)
-        LabelCount(label: label, count: counts[label] ?? 0),
-    ];
+    final List<LabelCount> results = [];
+    for (int i = 0; i < TaskLabel.values.length; i++) {
+      final label = TaskLabel.values[i];
+      int count = 0;
+      if (counts[label] != null) {
+        count = counts[label]!;
+      }
+      results.add(LabelCount(label: label, count: count));
+    }
+    return results;
   }
 
   List<LabelDurationStats> get durationStatsByLabel {
@@ -63,23 +98,30 @@ class AnalyticsProvider extends ChangeNotifier {
         continue;
       }
       final label = _resolveLabel(item);
-      final accumulator = accumulators.putIfAbsent(
-        label,
-        () => _DurationAccumulator(),
-      );
+      if (!accumulators.containsKey(label)) {
+        accumulators[label] = _DurationAccumulator();
+      }
+      final accumulator = accumulators[label]!;
       accumulator.add(template.expectedDuration, actual);
     }
 
-    return [
-      for (final label in TaskLabel.values)
-        if (accumulators.containsKey(label))
-          LabelDurationStats(
-            label: label,
-            expectedAverage: accumulators[label]!.expectedAverage,
-            actualAverage: accumulators[label]!.actualAverage,
-            sampleCount: accumulators[label]!.count,
-          ),
-    ];
+    final List<LabelDurationStats> stats = [];
+    for (int i = 0; i < TaskLabel.values.length; i++) {
+      final label = TaskLabel.values[i];
+      if (!accumulators.containsKey(label)) {
+        continue;
+      }
+      final accumulator = accumulators[label]!;
+      stats.add(
+        LabelDurationStats(
+          label: label,
+          expectedAverage: accumulator.expectedAverage,
+          actualAverage: accumulator.actualAverage,
+          sampleCount: accumulator.count,
+        ),
+      );
+    }
+    return stats;
   }
 
   DurationStats get overallDurationStats {
@@ -113,15 +155,21 @@ class AnalyticsProvider extends ChangeNotifier {
   }
 
   List<ActivityInstance> _filteredInstances() {
-    return _instances.where((item) {
+    final List<ActivityInstance> results = [];
+    for (int i = 0; i < _instances.length; i++) {
+      final item = _instances[i];
       if (!_isInRange(item.scheduledDate)) {
-        return false;
+        continue;
       }
       if (_labelFilter == null) {
-        return true;
+        results.add(item);
+        continue;
       }
-      return _resolveLabel(item) == _labelFilter;
-    }).toList();
+      if (_resolveLabel(item) == _labelFilter) {
+        results.add(item);
+      }
+    }
+    return results;
   }
 
   TaskTemplate? _templateFor(String? templateId) {
@@ -219,8 +267,13 @@ class _DurationAccumulator {
     count += 1;
   }
 
-  Duration get expectedAverage => _averageDuration(_expectedTotal, count);
-  Duration get actualAverage => _averageDuration(_actualTotal, count);
+  Duration get expectedAverage {
+    return _averageDuration(_expectedTotal, count);
+  }
+
+  Duration get actualAverage {
+    return _averageDuration(_actualTotal, count);
+  }
 
   Duration _averageDuration(Duration total, int count) {
     if (count == 0) {

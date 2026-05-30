@@ -29,8 +29,12 @@ extension _LibraryWidgets on _LibraryViewState {
   }
 
   Widget _buildTemplateForm() {
+    String titleText = 'New Template';
+    if (_editingTemplateId != null) {
+      titleText = 'Edit Template';
+    }
     return _EditorCard(
-      title: _editingTemplateId == null ? 'New Template' : 'Edit Template',
+      title: titleText,
       children: [
         TextField(
           controller: _titleController,
@@ -79,8 +83,12 @@ extension _LibraryWidgets on _LibraryViewState {
   }
 
   Widget _buildHabitForm() {
+    String titleText = 'New Habit';
+    if (_editingHabitId != null) {
+      titleText = 'Edit Habit';
+    }
     return _EditorCard(
-      title: _editingHabitId == null ? 'New Habit' : 'Edit Habit',
+      title: titleText,
       children: [
         TextField(
           controller: _habitTitleController,
@@ -112,8 +120,12 @@ extension _LibraryWidgets on _LibraryViewState {
   }
 
   Widget _buildFolderForm() {
+    String titleText = 'New Folder';
+    if (_editingFolderId != null) {
+      titleText = 'Edit Folder';
+    }
     return _EditorCard(
-      title: _editingFolderId == null ? 'New Folder' : 'Edit Folder',
+      title: titleText,
       children: [
         TextField(
           controller: _folderTitleController,
@@ -309,12 +321,16 @@ class _LibraryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget? subtitleWidget;
+    if (subtitle != null) {
+      subtitleWidget = Text(subtitle!);
+    }
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         title: Text(title),
-        subtitle: subtitle == null ? null : Text(subtitle!),
+        subtitle: subtitleWidget,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

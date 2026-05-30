@@ -51,13 +51,17 @@ class AnalyticsView extends StatelessWidget {
       ),
     );
 
+    TextStyle titleStyle = const TextStyle(fontWeight: FontWeight.bold);
+    final TextStyle? baseStyle = theme.textTheme.titleMedium;
+    if (baseStyle != null) {
+      titleStyle = baseStyle.copyWith(fontWeight: FontWeight.bold);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           'Analytics',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: titleStyle,
         ),
         centerTitle: true,
       ),

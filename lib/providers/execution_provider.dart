@@ -12,13 +12,28 @@ class ExecutionProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _lastError;
 
-  List<ActivityInstance> get items => List<ActivityInstance>.unmodifiable(_items);
-  Map<DateTime, List<ActivityInstance>> get monthEvents => _monthEvents;
-  bool get isLoading => _isLoading;
-  String? get lastError => _lastError;
+  List<ActivityInstance> get items {
+    return List<ActivityInstance>.unmodifiable(_items);
+  }
+
+  Map<DateTime, List<ActivityInstance>> get monthEvents {
+    return _monthEvents;
+  }
+
+  bool get isLoading {
+    return _isLoading;
+  }
+
+  String? get lastError {
+    return _lastError;
+  }
 
   List<ActivityInstance> eventsForDate(DateTime date) {
-    return _monthEvents[_dateKey(date)] ?? const [];
+    final key = _dateKey(date);
+    if (_monthEvents.containsKey(key)) {
+      return _monthEvents[key]!;
+    }
+    return const [];
   }
 
   Future<void> fetchMonthData(
@@ -56,9 +71,8 @@ class ExecutionProvider extends ChangeNotifier {
         end,
       );
 
-      _items
-        ..clear()
-        ..addAll(data);
+      _items.clear();
+      _items.addAll(data);
 
       _groupInstancesByDate(data);
       _lastError = null;
@@ -75,14 +89,26 @@ class ExecutionProvider extends ChangeNotifier {
     _items.add(saved);
     if (_isWithinMonth(saved.scheduledDate)) {
       final key = _dateKey(saved.scheduledDate);
-      final bucket = _monthEvents.putIfAbsent(key, () => []);
+      List<ActivityInstance> bucket;
+      if (_monthEvents.containsKey(key)) {
+        bucket = _monthEvents[key]!;
+      } else {
+        bucket = [];
+        _monthEvents[key] = bucket;
+      }
       bucket.add(saved);
     }
     notifyListeners();
   }
 
   Future<void> updateItemTime(String id, DateTime newTime) async {
-    final index = _items.indexWhere((item) => item.id == id);
+    int index = -1;
+    for (int i = 0; i < _items.length; i++) {
+      if (_items[i].id == id) {
+        index = i;
+        break;
+      }
+    }
     if (index == -1) {
       return;
     }
@@ -108,7 +134,13 @@ class ExecutionProvider extends ChangeNotifier {
   }
 
   Future<void> updateItemNote(String id, String? note) async {
-    final index = _items.indexWhere((item) => item.id == id);
+    int index = -1;
+    for (int i = 0; i < _items.length; i++) {
+      if (_items[i].id == id) {
+        index = i;
+        break;
+      }
+    }
     if (index == -1) {
       return;
     }
@@ -132,7 +164,13 @@ class ExecutionProvider extends ChangeNotifier {
   }
 
   Future<void> updateItemLabel(String id, TaskLabel label) async {
-    final index = _items.indexWhere((item) => item.id == id);
+    int index = -1;
+    for (int i = 0; i < _items.length; i++) {
+      if (_items[i].id == id) {
+        index = i;
+        break;
+      }
+    }
     if (index == -1) {
       return;
     }
@@ -158,7 +196,13 @@ class ExecutionProvider extends ChangeNotifier {
   }
 
   Future<void> updateItemStatus(String id, ActivityStatus status) async {
-    final index = _items.indexWhere((item) => item.id == id);
+    int index = -1;
+    for (int i = 0; i < _items.length; i++) {
+      if (_items[i].id == id) {
+        index = i;
+        break;
+      }
+    }
     if (index == -1) {
       return;
     }
@@ -185,7 +229,11 @@ class ExecutionProvider extends ChangeNotifier {
 
   Future<void> removeItem(String id) async {
     await SupabaseApi.instance.deleteActivityInstance(id);
-    _items.removeWhere((item) => item.id == id);
+    for (int i = _items.length - 1; i >= 0; i--) {
+      if (_items[i].id == id) {
+        _items.removeAt(i);
+      }
+    }
     _groupInstancesByDate(_items);
   }
 
@@ -193,7 +241,13 @@ class ExecutionProvider extends ChangeNotifier {
     _monthEvents.clear();
     for (final instance in instances) {
       final key = _dateKey(instance.scheduledDate);
-      final bucket = _monthEvents.putIfAbsent(key, () => []);
+      List<ActivityInstance> bucket;
+      if (_monthEvents.containsKey(key)) {
+        bucket = _monthEvents[key]!;
+      } else {
+        bucket = [];
+        _monthEvents[key] = bucket;
+      }
       bucket.add(instance);
     }
     notifyListeners();

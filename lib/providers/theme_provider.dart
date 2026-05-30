@@ -7,19 +7,34 @@ import 'package:youmi_dev/style/theme_factory.dart';
 class ThemeProvider extends ChangeNotifier {
   AppPalette _palette = const LightPalette();
 
-  AppPalette get palette => _palette;
+  AppPalette get palette {
+    return _palette;
+  }
 
-  ThemeData get theme => buildTheme(_palette);
+  ThemeData get theme {
+    return buildTheme(_palette);
+  }
 
-  bool get isDark => _palette.isDark;
+  bool get isDark {
+    return _palette.isDark;
+  }
 
   void setPalette(AppPalette palette) {
     _palette = palette;
     notifyListeners();
   }
 
+  void setPaletteByName(String name) {
+    _palette = paletteFromName(name);
+    notifyListeners();
+  }
+
   void togglePalette() {
-    _palette = isDark ? const LightPalette() : const DarkPalette();
+    if (isDark) {
+      _palette = const LightPalette();
+    } else {
+      _palette = const DarkPalette();
+    }
     notifyListeners();
   }
 }

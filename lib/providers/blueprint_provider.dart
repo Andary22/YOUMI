@@ -1,4 +1,4 @@
-// BlueprintProvider: CRUD and lookup for task templates, habits, and folders.
+  // BlueprintProvider: CRUD and lookup for task templates, habits, and folders.
 import 'package:flutter/foundation.dart';
 import 'package:youmi_dev/core/supabase_api.dart';
 import 'package:youmi_dev/models/habit.dart';
@@ -12,11 +12,25 @@ class BlueprintProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _lastError;
 
-  List<TaskFolder> get folders => List<TaskFolder>.unmodifiable(_folders);
-  List<TaskTemplate> get templates => List<TaskTemplate>.unmodifiable(_templates);
-  List<Habit> get habits => List<Habit>.unmodifiable(_habits);
-  bool get isLoading => _isLoading;
-  String? get lastError => _lastError;
+  List<TaskFolder> get folders {
+    return List<TaskFolder>.unmodifiable(_folders);
+  }
+
+  List<TaskTemplate> get templates {
+    return List<TaskTemplate>.unmodifiable(_templates);
+  }
+
+  List<Habit> get habits {
+    return List<Habit>.unmodifiable(_habits);
+  }
+
+  bool get isLoading {
+    return _isLoading;
+  }
+
+  String? get lastError {
+    return _lastError;
+  }
 
   Future<void> loadForUser(String userId) async {
     _setLoading(true);
@@ -27,15 +41,12 @@ class BlueprintProvider extends ChangeNotifier {
         api.fetchTaskTemplates(userId),
         api.fetchHabits(userId),
       ]);
-      _folders
-        ..clear()
-        ..addAll(results[0] as List<TaskFolder>);
-      _templates
-        ..clear()
-        ..addAll(results[1] as List<TaskTemplate>);
-      _habits
-        ..clear()
-        ..addAll(results[2] as List<Habit>);
+      _folders.clear();
+      _folders.addAll(results[0] as List<TaskFolder>);
+      _templates.clear();
+      _templates.addAll(results[1] as List<TaskTemplate>);
+      _habits.clear();
+      _habits.addAll(results[2] as List<Habit>);
       _lastError = null;
       notifyListeners();
     } catch (e) {
@@ -49,7 +60,13 @@ class BlueprintProvider extends ChangeNotifier {
   Future<TaskTemplate> saveTemplate(TaskTemplate template) async {
     final api = SupabaseApi.instance;
     final saved = await api.upsertTaskTemplate(template);
-    final index = _templates.indexWhere((item) => item.id == saved.id);
+    int index = -1;
+    for (int i = 0; i < _templates.length; i++) {
+      if (_templates[i].id == saved.id) {
+        index = i;
+        break;
+      }
+    }
     if (index >= 0) {
       _templates[index] = saved;
     } else {
@@ -62,7 +79,13 @@ class BlueprintProvider extends ChangeNotifier {
   Future<Habit> saveHabit(Habit habit) async {
     final api = SupabaseApi.instance;
     final saved = await api.upsertHabit(habit);
-    final index = _habits.indexWhere((item) => item.id == saved.id);
+    int index = -1;
+    for (int i = 0; i < _habits.length; i++) {
+      if (_habits[i].id == saved.id) {
+        index = i;
+        break;
+      }
+    }
     if (index >= 0) {
       _habits[index] = saved;
     } else {
@@ -75,7 +98,13 @@ class BlueprintProvider extends ChangeNotifier {
   Future<TaskFolder> saveFolder(TaskFolder folder) async {
     final api = SupabaseApi.instance;
     final saved = await api.upsertTaskFolder(folder);
-    final index = _folders.indexWhere((item) => item.id == saved.id);
+    int index = -1;
+    for (int i = 0; i < _folders.length; i++) {
+      if (_folders[i].id == saved.id) {
+        index = i;
+        break;
+      }
+    }
     if (index >= 0) {
       _folders[index] = saved;
     } else {
@@ -87,19 +116,31 @@ class BlueprintProvider extends ChangeNotifier {
 
   Future<void> deleteTemplate(String id) async {
     await SupabaseApi.instance.deleteTaskTemplate(id);
-    _templates.removeWhere((item) => item.id == id);
+    for (int i = _templates.length - 1; i >= 0; i--) {
+      if (_templates[i].id == id) {
+        _templates.removeAt(i);
+      }
+    }
     notifyListeners();
   }
 
   Future<void> deleteHabit(String id) async {
     await SupabaseApi.instance.deleteHabit(id);
-    _habits.removeWhere((item) => item.id == id);
+    for (int i = _habits.length - 1; i >= 0; i--) {
+      if (_habits[i].id == id) {
+        _habits.removeAt(i);
+      }
+    }
     notifyListeners();
   }
 
   Future<void> deleteFolder(String id) async {
     await SupabaseApi.instance.deleteTaskFolder(id);
-    _folders.removeWhere((item) => item.id == id);
+    for (int i = _folders.length - 1; i >= 0; i--) {
+      if (_folders[i].id == id) {
+        _folders.removeAt(i);
+      }
+    }
     notifyListeners();
   }
 
