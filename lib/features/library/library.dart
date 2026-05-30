@@ -308,7 +308,6 @@ class _LibraryViewState extends State<LibraryView> {
       _openNewFolder,
       _buildFolderCards(folders),
     );
-    bodyChildren.add(_buildSystemNote());
 
     return Scaffold(
       appBar: AppBar(

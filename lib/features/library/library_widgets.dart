@@ -87,6 +87,13 @@ extension _LibraryWidgets on _LibraryViewState {
     if (_editingHabitId != null) {
       titleText = 'Edit Habit';
     }
+    final List<String> dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    int currentMask = 0;
+    final int? parsedMask = int.tryParse(_maskController.text.trim());
+    if (parsedMask != null) {
+      currentMask = parsedMask;
+    }
+
     return _EditorCard(
       title: titleText,
       children: [
@@ -107,12 +114,37 @@ extension _LibraryWidgets on _LibraryViewState {
           },
         ),
         const SizedBox(height: 12),
-        TextField(
-          controller: _maskController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Recurrence mask (bitmask)',
-          ),
+        const Text('Repeat on'),
+        const SizedBox(height: 8),
+        StatefulBuilder(
+          builder: (context, setLocalState) {
+            int mask = 0;
+            final int? pm = int.tryParse(_maskController.text.trim());
+            if (pm != null) {
+              mask = pm;
+            }
+            return Wrap(
+              spacing: 8,
+              children: List.generate(7, (i) {
+                final int bit = 1 << i;
+                final bool selected = (mask & bit) != 0;
+                return FilterChip(
+                  label: Text(dayLabels[i]),
+                  selected: selected,
+                  onSelected: (val) {
+                    int newMask = mask;
+                    if (val) {
+                      newMask = newMask | bit;
+                    } else {
+                      newMask = newMask & ~bit;
+                    }
+                    _maskController.text = newMask.toString();
+                    setLocalState(() {});
+                  },
+                );
+              }),
+            );
+          },
         ),
         _formActions(_saveHabit),
       ],

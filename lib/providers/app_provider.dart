@@ -119,6 +119,61 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateName(String newName) async {
+    if (_currentUser == null) {
+      _lastError = 'No active user session';
+      notifyListeners();
+      return false;
+    }
+    try {
+      final updated = AppUser(
+        id: _currentUser!.id,
+        email: _currentUser!.email,
+        themePref: _currentUser!.themePref,
+        name: newName,
+      );
+      _currentUser = await SupabaseApi.instance.upsertProfile(
+        updated,
+        includeNameField: true,
+      );
+      _lastError = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _lastError = _formatError(e);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateEmail(String newEmail) async {
+    if (_currentUser == null) {
+      _lastError = 'No active user session';
+      notifyListeners();
+      return false;
+    }
+    _setBusy(true);
+    try {
+      await SupabaseApi.instance.updateEmail(newEmail);
+      final updated = AppUser(
+        id: _currentUser!.id,
+        email: newEmail,
+        themePref: _currentUser!.themePref,
+        name: _currentUser!.name,
+      );
+      _currentUser = await SupabaseApi.instance.upsertProfile(updated);
+      _lastError = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _lastError = _formatError(e);
+      notifyListeners();
+      return false;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
   Future<bool> updatePassword(String newPassword) async {
     _setBusy(true);
     try {
@@ -161,7 +216,10 @@ class AppProvider extends ChangeNotifier {
         lower.contains('email not confirmed')) {
       return 'Please confirm your email, then try again.';
     }
-    if (lower.contains('user_already_registered')) {
+    if (lower.contains('user_already_registered') ||
+        lower.contains('email already') ||
+        lower.contains('already registered') ||
+        lower.contains('already exists')) {
       return 'An account with this email already exists. Try signing in.';
     }
     if (lower.contains('weak_password')) {

@@ -118,6 +118,22 @@ class SupabaseApi {
     }
   }
 
+  Future<void> updateEmail(String newEmail) async {
+    if (_accessToken == null) {
+      throw SupabaseApiException('Not authenticated');
+    }
+    final uri = Uri.parse('${SupabaseConfig.authBaseUrl}/user');
+    final response = await _client.put(
+      uri,
+      headers: _authHeaders(),
+      body: jsonEncode({'email': newEmail}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _parseError(response);
+    }
+    _email = newEmail;
+  }
+
   Future<AppUser?> fetchProfile(String userId) async {
     final uri = _restUri('profiles', {
       'select': '*',
@@ -135,12 +151,15 @@ class SupabaseApi {
     return null;
   }
 
-  Future<AppUser> upsertProfile(AppUser user) async {
+  Future<AppUser> upsertProfile(AppUser user, {bool includeNameField = false}) async {
     final uri = _restUri('profiles');
+    final Map<String, dynamic> data = includeNameField
+        ? user.toJson()
+        : user.toJsonCreate();
     final response = await _client.post(
       uri,
       headers: _restHeaders(prefer: 'resolution=merge-duplicates,return=representation'),
-      body: jsonEncode([user.toJson()]),
+      body: jsonEncode([data]),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw _parseError(response);
