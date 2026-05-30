@@ -46,12 +46,12 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> signUp(String email, String password) async {
+  Future<bool> signUp(String email, String password, String name) async {
     _setBusy(true);
     try {
       final session = await SupabaseApi.instance.signUp(email, password);
       SupabaseApi.instance.updateSession(session);
-      final profile = await _loadOrCreateProfile(session);
+      final profile = await _loadOrCreateProfile(session, name: name);
       _currentUser = profile;
       _isAuthenticated = true;
       _lastError = null;
@@ -83,7 +83,7 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<AppUser> _loadOrCreateProfile(AuthSession session) async {
+  Future<AppUser> _loadOrCreateProfile(AuthSession session, {String? name}) async {
     final existing = await SupabaseApi.instance.fetchProfile(session.userId);
     if (existing != null) {
       return existing;
@@ -92,8 +92,12 @@ class AppProvider extends ChangeNotifier {
       id: session.userId,
       email: session.email,
       themePref: 'gruvbox_material_dark',
+      name: name ?? '',
     );
-    return SupabaseApi.instance.upsertProfile(fresh);
+    return SupabaseApi.instance.upsertProfile(
+      fresh,
+      includeNameField: name != null,
+    );
   }
 
   Future<bool> updateThemePreference(String themeName) async {

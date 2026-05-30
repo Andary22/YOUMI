@@ -88,11 +88,6 @@ extension _LibraryWidgets on _LibraryViewState {
       titleText = 'Edit Habit';
     }
     final List<String> dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    int currentMask = 0;
-    final int? parsedMask = int.tryParse(_maskController.text.trim());
-    if (parsedMask != null) {
-      currentMask = parsedMask;
-    }
 
     return _EditorCard(
       title: titleText,
@@ -290,26 +285,6 @@ extension _LibraryWidgets on _LibraryViewState {
     return cards;
   }
 
-  Widget _buildSystemNote() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text('System Note'),
-            SizedBox(height: 6),
-            Text(
-              'Future activity instances are generated automatically '
-              'when habit recurrence masks change.',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _EditorCard extends StatelessWidget {

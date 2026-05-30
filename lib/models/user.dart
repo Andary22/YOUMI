@@ -12,7 +12,13 @@ class AppUser {
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
-    String parsedName = (json['name'] as String?) ?? '';
+    final String? rawName = json['name'] as String?;
+    String parsedName;
+    if (rawName == null) {
+      parsedName = '';
+    } else {
+      parsedName = rawName;
+    }
     if (parsedName == '"' || parsedName == "'") {
       parsedName = '';
     }

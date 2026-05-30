@@ -15,25 +15,17 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
-  bool _profileLoaded = false;
-  String _displayName = '';
-  String _displayEmail = '';
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final user = Provider.of<AppProvider>(context, listen: false).currentUser;
-    if (user != null) {
-      if (!_profileLoaded) {
-        _profileLoaded = true;
-      }
-      _displayName = user.name;
-      _displayEmail = user.email;
-    }
-  }
-
   Future<void> _openEditNameDialog() async {
-    final controller = TextEditingController(text: _displayName);
+    final AppProvider appProvider =
+        Provider.of<AppProvider>(context, listen: false);
+    final currentUser = appProvider.currentUser;
+    final String currentName;
+    if (currentUser == null) {
+      currentName = '';
+    } else {
+      currentName = currentUser.name;
+    }
+    final controller = TextEditingController(text: currentName);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -64,13 +56,17 @@ class _SettingsViewState extends State<SettingsView> {
                 final bool success = await appProvider.updateName(newName);
                 if (!mounted) return;
                 if (success) {
-                  setState(() {
-                    _displayName = newName;
-                  });
                   _showMessage('Name updated');
                   return;
                 }
-                _showMessage(appProvider.lastError ?? 'Name update failed');
+                final String? lastError = appProvider.lastError;
+                String failureMessage;
+                if (lastError == null) {
+                  failureMessage = 'Name update failed';
+                } else {
+                  failureMessage = lastError;
+                }
+                _showMessage(failureMessage);
               },
               child: const Text('Save'),
             ),
@@ -81,7 +77,16 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Future<void> _openEditEmailDialog() async {
-    final controller = TextEditingController(text: _displayEmail);
+    final AppProvider appProvider =
+        Provider.of<AppProvider>(context, listen: false);
+    final currentUser = appProvider.currentUser;
+    final String currentEmail;
+    if (currentUser == null) {
+      currentEmail = '';
+    } else {
+      currentEmail = currentUser.email;
+    }
+    final controller = TextEditingController(text: currentEmail);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -105,9 +110,9 @@ class _SettingsViewState extends State<SettingsView> {
             ),
             ElevatedButton(
               onPressed: () async {
-                final newEmail = controller.text.trim();
+                final String newEmail = controller.text.trim();
                 if (newEmail.isEmpty) return;
-                if (newEmail == _displayEmail) {
+                if (newEmail == currentEmail) {
                   Navigator.pop(dialogContext);
                   _showMessage('This is already your current email');
                   return;
@@ -118,13 +123,17 @@ class _SettingsViewState extends State<SettingsView> {
                 final bool success = await appProvider.updateEmail(newEmail);
                 if (!mounted) return;
                 if (success) {
-                  setState(() {
-                    _displayEmail = newEmail;
-                  });
                   _showMessage('Email updated');
                   return;
                 }
-                _showMessage(appProvider.lastError ?? 'Email update failed');
+                final String? lastError = appProvider.lastError;
+                String failureMessage;
+                if (lastError == null) {
+                  failureMessage = 'Email update failed';
+                } else {
+                  failureMessage = lastError;
+                }
+                _showMessage(failureMessage);
               },
               child: const Text('Save'),
             ),
@@ -145,6 +154,18 @@ class _SettingsViewState extends State<SettingsView> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
+            final IconData newPasswordIcon;
+            if (obscureNew) {
+              newPasswordIcon = Icons.visibility_off;
+            } else {
+              newPasswordIcon = Icons.visibility;
+            }
+            final IconData confirmPasswordIcon;
+            if (obscureConfirm) {
+              confirmPasswordIcon = Icons.visibility_off;
+            } else {
+              confirmPasswordIcon = Icons.visibility;
+            }
             return AlertDialog(
               title: const Text('Update Password'),
               content: Column(
@@ -163,11 +184,7 @@ class _SettingsViewState extends State<SettingsView> {
                             obscureNew = !obscureNew;
                           });
                         },
-                        icon: Icon(
-                          obscureNew
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
+                        icon: Icon(newPasswordIcon),
                       ),
                     ),
                   ),
@@ -184,11 +201,7 @@ class _SettingsViewState extends State<SettingsView> {
                             obscureConfirm = !obscureConfirm;
                           });
                         },
-                        icon: Icon(
-                          obscureConfirm
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
+                        icon: Icon(confirmPasswordIcon),
                       ),
                     ),
                   ),
@@ -224,9 +237,14 @@ class _SettingsViewState extends State<SettingsView> {
                       _showMessage('Password updated');
                       return;
                     }
-                    _showMessage(
-                      appProvider.lastError ?? 'Password update failed',
-                    );
+                    final String? lastError = appProvider.lastError;
+                    String failureMessage;
+                    if (lastError == null) {
+                      failureMessage = 'Password update failed';
+                    } else {
+                      failureMessage = lastError;
+                    }
+                    _showMessage(failureMessage);
                   },
                   child: const Text('Save'),
                 ),
@@ -240,8 +258,51 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = context.watch<ThemeProvider>();
-    final appProvider = context.watch<AppProvider>();
+    final ThemeProvider themeProvider = context.watch<ThemeProvider>();
+    final AppProvider appProvider = context.watch<AppProvider>();
+    final currentUser = appProvider.currentUser;
+    final String displayName;
+    if (currentUser == null) {
+      displayName = '';
+    } else {
+      displayName = currentUser.name.trim();
+    }
+    final String displayEmail;
+    if (currentUser == null) {
+      displayEmail = '';
+    } else {
+      displayEmail = currentUser.email.trim();
+    }
+    final String nameSubtitle;
+    if (displayName.isEmpty) {
+      nameSubtitle = 'Not set';
+    } else {
+      nameSubtitle = displayName;
+    }
+    final String emailSubtitle;
+    if (displayEmail.isEmpty) {
+      emailSubtitle = 'Not set';
+    } else {
+      emailSubtitle = displayEmail;
+    }
+    final VoidCallback? nameTap;
+    if (appProvider.isBusy) {
+      nameTap = null;
+    } else {
+      nameTap = _openEditNameDialog;
+    }
+    final VoidCallback? emailTap;
+    if (appProvider.isBusy) {
+      emailTap = null;
+    } else {
+      emailTap = _openEditEmailDialog;
+    }
+    final VoidCallback? passwordTap;
+    if (appProvider.isBusy) {
+      passwordTap = null;
+    } else {
+      passwordTap = _openUpdatePasswordDialog;
+    }
 
     const palettes = appPalettes;
     AppPalette selectedPalette = themeProvider.palette;
@@ -279,19 +340,17 @@ class _SettingsViewState extends State<SettingsView> {
                 ListTile(
                   leading: const Icon(Icons.person_outline),
                   title: const Text('Name'),
-                  subtitle: Text(
-                    _displayName.isEmpty ? 'Not set' : _displayName,
-                  ),
+                  subtitle: Text(nameSubtitle),
                   trailing: const Icon(Icons.edit_outlined, size: 18),
-                  onTap: appProvider.isBusy ? null : _openEditNameDialog,
+                  onTap: nameTap,
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 ListTile(
                   leading: const Icon(Icons.email_outlined),
                   title: const Text('Email'),
-                  subtitle: Text(_displayEmail),
+                  subtitle: Text(emailSubtitle),
                   trailing: const Icon(Icons.edit_outlined, size: 18),
-                  onTap: appProvider.isBusy ? null : _openEditEmailDialog,
+                  onTap: emailTap,
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 ListTile(
@@ -299,9 +358,7 @@ class _SettingsViewState extends State<SettingsView> {
                   title: const Text('Password'),
                   subtitle: const Text('Tap to change your password'),
                   trailing: const Icon(Icons.chevron_right, size: 18),
-                  onTap: appProvider.isBusy
-                      ? null
-                      : _openUpdatePasswordDialog,
+                  onTap: passwordTap,
                 ),
                 const SizedBox(height: 4),
               ],
@@ -340,10 +397,14 @@ class _SettingsViewState extends State<SettingsView> {
                           );
                           if (!mounted) return;
                           if (!success) {
-                            _showMessage(
-                              appProvider.lastError ??
-                                  'Failed to save theme preference',
-                            );
+                            final String? lastError = appProvider.lastError;
+                            String failureMessage;
+                            if (lastError == null) {
+                              failureMessage = 'Failed to save theme preference';
+                            } else {
+                              failureMessage = lastError;
+                            }
+                            _showMessage(failureMessage);
                           }
                         },
                       ),

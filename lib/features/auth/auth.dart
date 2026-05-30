@@ -346,9 +346,11 @@ class _AuthPageState extends State<AuthPage> {
 
   Future<void> _handleSignUp() async {
     final app = Provider.of<AppProvider>(context, listen: false);
+    final String name = nameController.text.trim();
     final success = await app.signUp(
       emailController.text.trim(),
       passwordController.text.trim(),
+      name,
     );
     if (!mounted) {
       return;
