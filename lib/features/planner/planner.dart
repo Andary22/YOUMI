@@ -158,12 +158,31 @@ class _PlannerViewState extends State<PlannerView> {
     });
   }
 
-  void _editItemTime(ActivityInstance item) {
+  Future<void> _editItemTime(ActivityInstance item) async {
+  final initialTime = TimeOfDay.fromDateTime(item.scheduledDate);
+
+  final TimeOfDay? pickedTime = await showTimePicker(
+    context: context,
+    initialTime: initialTime,
+  );
+
+  if (pickedTime != null) {
+    final newScheduledDate = DateTime(
+      item.scheduledDate.year,
+      item.scheduledDate.month,
+      item.scheduledDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+
+    if (!mounted) return; 
+
     final execution = Provider.of<ExecutionProvider>(context, listen: false);
-    final scheduled = item.scheduledDate.add(const Duration(minutes: 30));
-    execution.updateItemTime(item.id, scheduled);
-    _showAddFeedback(context, 'Time +30 min');
+    execution.updateItemTime(item.id, newScheduledDate);
+    
+    _showAddFeedback(context, 'Time updated to ${pickedTime.format(context)}');
   }
+}
 
   void _editItemNote(ActivityInstance item) {
     Navigator.push<String>(
