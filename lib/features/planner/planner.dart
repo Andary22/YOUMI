@@ -80,14 +80,12 @@ class _PlannerViewState extends State<PlannerView> {
     });
   }
 
-  void _openQuickAddPage(DateTime date) {
+  void _openQuickAddPage(DateTime date) async { // Added async here
     final blueprint = Provider.of<BlueprintProvider>(context, listen: false);
     final execution = Provider.of<ExecutionProvider>(context, listen: false);
     String? userId;
-    final user = Provider.of<AppProvider>(
-      context,
-      listen: false,
-    ).currentUser;
+    final user = Provider.of<AppProvider>(context, listen: false).currentUser;
+    
     if (user != null) {
       userId = user.id;
     }
@@ -97,7 +95,7 @@ class _PlannerViewState extends State<PlannerView> {
     }
     final String resolvedUserId = userId;
 
-    Navigator.push<_QuickAddResult>(
+    final result = await Navigator.push<_QuickAddResult>(
       context,
       MaterialPageRoute(
         builder: (context) {
@@ -108,54 +106,58 @@ class _PlannerViewState extends State<PlannerView> {
           );
         },
       ),
-    ).then((result) {
-      if (!mounted) {
-        return;
-      }
-      if (result == null) {
-        return;
+    );
+
+    if (!mounted || result == null) return;
+
+    ActivityInstance? newItem;
+
+    if (result.type == 'template' && result.template != null) {
+      final template = result.template!;
+      Map<String, bool> subTaskStates = {};
+      for (int i = 0; i < template.subTasks.length; i++) {
+        final subTask = template.subTasks[i];
+        subTaskStates[subTask.id] = false;
       }
 
-      if (result.type == 'template' && result.template != null) {
-        final template = result.template!;
-        Map<String, bool> subTaskStates = {};
-        for (int i = 0; i < template.subTasks.length; i++) {
-          final subTask = template.subTasks[i];
-          subTaskStates[subTask.id] = false;
-        }
+      newItem = ActivityInstance(
+        id: _newId(),
+        userId: resolvedUserId,
+        taskTemplateId: template.id,
+        label: template.label,
+        scheduledDate: DateTime(date.year, date.month, date.day, 9, 0),
+        status: ActivityStatus.pending,
+        note: null,
+        subTaskStates: subTaskStates,
+      );
 
-        execution.addItem(
-          ActivityInstance(
-            id: _newId(),
-            userId: resolvedUserId,
-            taskTemplateId: template.id,
-            label: template.label,
-            scheduledDate: DateTime(date.year, date.month, date.day, 9, 0),
-            status: ActivityStatus.pending,
-            note: null,
-            subTaskStates: subTaskStates,
-          ),
-        );
-        _showAddFeedback(context, 'Added ${template.title}');
-      }
+      execution.addItem(newItem);
+      _showAddFeedback(context, 'Added ${template.title}');
+    }
 
-      if (result.type == 'habit' && result.habit != null) {
-        final habit = result.habit!;
-        execution.addItem(
-          ActivityInstance(
-            id: _newId(),
-            userId: resolvedUserId,
-            habitId: habit.id,
-            label: habit.label,
-            scheduledDate: DateTime(date.year, date.month, date.day),
-            status: ActivityStatus.pending,
-            note: null,
-            subTaskStates: const {},
-          ),
-        );
-        _showAddFeedback(context, 'Added ${habit.title}');
+    if (result.type == 'habit' && result.habit != null) {
+      final habit = result.habit!;
+      newItem = ActivityInstance(
+        id: _newId(),
+        userId: resolvedUserId,
+        habitId: habit.id,
+        label: habit.label,
+        scheduledDate: DateTime(date.year, date.month, date.day),
+        status: ActivityStatus.pending,
+        note: null,
+        subTaskStates: const {},
+      );
+      
+      execution.addItem(newItem);
+      _showAddFeedback(context, 'Added ${habit.title}');
+    }
+
+    if (newItem != null && mounted) {
+      // await Future.delayed(const Duration(milliseconds: 150));
+      if (mounted) {
+        await _editItemTime(newItem);
       }
-    });
+    }
   }
 
   Future<void> _editItemTime(ActivityInstance item) async {
