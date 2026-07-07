@@ -4,6 +4,7 @@ import 'package:youmi_dev/features/dashboard/dashboard.dart';
 import 'package:youmi_dev/features/library/library.dart';
 import 'package:youmi_dev/features/planner/planner.dart';
 import 'package:youmi_dev/features/settings/settings.dart';
+import 'package:youmi_dev/style/paper_widgets.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -16,10 +17,12 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _currentIndex = 0;
+  final Set<int> _visitedIndices = {0};
 
   void _goToSettings() {
     setState(() {
       _currentIndex = 4;
+      _visitedIndices.add(4);
     });
   }
 
@@ -27,27 +30,42 @@ class _AppShellState extends State<AppShell> {
     _ShellDestination(
       label: 'Dashboard',
       icon: Icons.dashboard_outlined,
-      view: DashboardView(onOpenSettings: _goToSettings),
+      selectedIcon: Icons.dashboard_rounded,
+      builder: () {
+        return DashboardView(onOpenSettings: _goToSettings);
+      },
     ),
-    const _ShellDestination(
+    _ShellDestination(
       label: 'Planner',
       icon: Icons.event_outlined,
-      view: PlannerView(),
+      selectedIcon: Icons.event_rounded,
+      builder: () {
+        return const PlannerView();
+      },
     ),
-    const _ShellDestination(
+    _ShellDestination(
       label: 'Library',
       icon: Icons.menu_book_outlined,
-      view: LibraryView(),
+      selectedIcon: Icons.menu_book_rounded,
+      builder: () {
+        return const LibraryView();
+      },
     ),
-    const _ShellDestination(
+    _ShellDestination(
       label: 'Analytics',
       icon: Icons.insights_outlined,
-      view: AnalyticsView(),
+      selectedIcon: Icons.insights_rounded,
+      builder: () {
+        return const AnalyticsView();
+      },
     ),
-    const _ShellDestination(
+    _ShellDestination(
       label: 'Settings',
       icon: Icons.settings_outlined,
-      view: SettingsView(),
+      selectedIcon: Icons.settings_rounded,
+      builder: () {
+        return const SettingsView();
+      },
     ),
   ];
 
@@ -55,32 +73,48 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final List<Widget> views = [];
     for (int i = 0; i < _destinations.length; i++) {
-      views.add(_destinations[i].view);
+      if (_visitedIndices.contains(i)) {
+        views.add(_destinations[i].builder());
+      } else {
+        views.add(const SizedBox.shrink());
+      }
     }
-    final List<BottomNavigationBarItem> items = [];
-    for (int i = 0; i < _destinations.length; i++) {
-      final destination = _destinations[i];
-      items.add(
-        BottomNavigationBarItem(
-          icon: Icon(destination.icon),
+    final items = [
+      for (final destination in _destinations)
+        PillNavItem(
           label: destination.label,
+          icon: destination.icon,
+          selectedIcon: destination.selectedIcon,
         ),
-      );
-    }
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: views,
+    ];
+    final colorScheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            colorScheme.surfaceContainerLowest,
+            colorScheme.surface,
+          ],
+        ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        type: BottomNavigationBarType.fixed,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        items: items,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: IndexedStack(
+          index: _currentIndex,
+          children: views,
+        ),
+        bottomNavigationBar: PillNavBar(
+          currentIndex: _currentIndex,
+          items: items,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+              _visitedIndices.add(index);
+            });
+          },
+        ),
       ),
     );
   }
@@ -89,11 +123,14 @@ class _AppShellState extends State<AppShell> {
 class _ShellDestination {
   final String label;
   final IconData icon;
-  final Widget view;
+  final IconData selectedIcon;
+  final Widget Function() builder;
 
   const _ShellDestination({
     required this.label,
     required this.icon,
-    required this.view,
+    required this.selectedIcon,
+    required this.builder,
   });
 }
+  

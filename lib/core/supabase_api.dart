@@ -103,6 +103,18 @@ class SupabaseApi {
     updateSession(null);
   }
 
+  Future<void> resetPasswordForEmail(String email) async {
+    final uri = Uri.parse('${SupabaseConfig.authBaseUrl}/recover');
+    final response = await _client.post(
+      uri,
+      headers: _authHeaders(includeAuth: false),
+      body: jsonEncode({'email': email}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _parseError(response);
+    }
+  }
+
   Future<void> updatePassword(String newPassword) async {
     if (_accessToken == null) {
       throw SupabaseApiException('Not authenticated');

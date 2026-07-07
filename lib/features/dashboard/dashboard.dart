@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:youmi_dev/core/utils.dart';
 import 'package:youmi_dev/models/activity_instance.dart';
 import 'package:youmi_dev/models/habit.dart';
 import 'package:youmi_dev/models/labels.dart';
@@ -7,6 +8,9 @@ import 'package:youmi_dev/models/task_template.dart';
 import 'package:youmi_dev/providers/app_provider.dart';
 import 'package:youmi_dev/providers/blueprint_provider.dart';
 import 'package:youmi_dev/providers/execution_provider.dart';
+import 'package:youmi_dev/style/common_widgets.dart';
+import 'package:youmi_dev/style/label_style.dart';
+import 'package:youmi_dev/style/paper_widgets.dart';
 import 'package:uuid/uuid.dart';
 
 part 'dashboard_widgets.dart';
@@ -31,9 +35,25 @@ class _DashboardViewState extends State<DashboardView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<ExecutionProvider>(context, listen: false)
-          .fetchMonthData(DateTime.now());
+      _refresh();
     });
+  }
+
+  Future<void> _refresh() async {
+    final user = Provider.of<AppProvider>(context, listen: false).currentUser;
+    if (user != null) {
+      await Provider.of<BlueprintProvider>(
+        context,
+        listen: false,
+      ).loadForUser(user.id);
+    }
+    if (!mounted) {
+      return;
+    }
+    await Provider.of<ExecutionProvider>(
+      context,
+      listen: false,
+    ).fetchMonthData(DateTime.now());
   }
 
   String _weekdayName(int weekday) {
@@ -67,10 +87,23 @@ class _DashboardViewState extends State<DashboardView> {
     return names[month - 1];
   }
 
+  String _greeting() {
+    final int hour = DateTime.now().hour;
+    if (hour < 5) {
+      return 'Good night';
+    }
+    if (hour < 12) {
+      return 'Good morning';
+    }
+    if (hour < 18) {
+      return 'Good afternoon';
+    }
+    return 'Good evening';
+  }
+
   String _titleFor(ActivityInstance ai, BlueprintProvider blueprint) {
     if (ai.taskTemplateId != null) {
-      final TaskTemplate? template =
-          blueprint.templateById(ai.taskTemplateId!);
+      final TaskTemplate? template = blueprint.templateById(ai.taskTemplateId!);
       if (template != null) {
         return template.title;
       }
@@ -86,10 +119,7 @@ class _DashboardViewState extends State<DashboardView> {
     return 'Unnamed';
   }
 
-  TaskTemplate? _templateFor(
-    ActivityInstance ai,
-    BlueprintProvider blueprint,
-  ) {
+  TaskTemplate? _templateFor(ActivityInstance ai, BlueprintProvider blueprint) {
     if (ai.taskTemplateId == null) {
       return null;
     }
@@ -101,8 +131,10 @@ class _DashboardViewState extends State<DashboardView> {
     if (ai.status == ActivityStatus.success) {
       nextStatus = ActivityStatus.pending;
     }
-    Provider.of<ExecutionProvider>(context, listen: false)
-        .updateItemStatus(ai.id, nextStatus);
+    Provider.of<ExecutionProvider>(
+      context,
+      listen: false,
+    ).updateItemStatus(ai.id, nextStatus);
   }
 
   void _toggleHabit(String habitId) {
@@ -134,6 +166,7 @@ class _DashboardViewState extends State<DashboardView> {
           title: const Text('New Habit'),
           content: TextField(
             controller: controller,
+            autofocus: true,
             decoration: const InputDecoration(labelText: 'Title'),
           ),
           actions: [
@@ -154,6 +187,9 @@ class _DashboardViewState extends State<DashboardView> {
       },
     );
     if (title == null) {
+      return;
+    }
+    if (!mounted) {
       return;
     }
     String? userId;
@@ -177,8 +213,21 @@ class _DashboardViewState extends State<DashboardView> {
       recurrenceMask: 0,
       currentStreak: 0,
     );
-    await Provider.of<BlueprintProvider>(context, listen: false)
-        .saveHabit(habit);
+    try {
+      await Provider.of<BlueprintProvider>(
+        context,
+        listen: false,
+      ).saveHabit(habit);
+      if (!mounted) {
+        return;
+      }
+      _showMessage('Habit added');
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      _showMessage('Could not add habit: $e');
+    }
   }
 
   Future<void> _openHabitSettingsDialog(Habit habit) async {
@@ -194,6 +243,7 @@ class _DashboardViewState extends State<DashboardView> {
               title: const Text('Habit Settings'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TextField(
                     controller: titleController,
@@ -201,12 +251,23 @@ class _DashboardViewState extends State<DashboardView> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<TaskLabel>(
-                    value: selectedLabel,
+                    initialValue: selectedLabel,
                     decoration: const InputDecoration(labelText: 'Label'),
                     items: TaskLabel.values.map((label) {
+                      final style = labelStyleFor(
+                        label,
+                        Theme.of(dialogContext).colorScheme,
+                      );
                       return DropdownMenuItem(
                         value: label,
-                        child: Text(label.name),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(style.icon, size: 16, color: style.color),
+                            const SizedBox(width: 8),
+                            Text(style.displayName),
+                          ],
+                        ),
                       );
                     }).toList(),
                     onChanged: (value) {
@@ -241,8 +302,14 @@ class _DashboardViewState extends State<DashboardView> {
                       recurrenceMask: habit.recurrenceMask,
                       currentStreak: habit.currentStreak,
                     );
-                    await Provider.of<BlueprintProvider>(context, listen: false)
-                        .saveHabit(updated);
+                    try {
+                      await Provider.of<BlueprintProvider>(
+                        context,
+                        listen: false,
+                      ).saveHabit(updated);
+                    } catch (e) {
+                      _showMessage(e.toString());
+                    }
                   },
                   child: const Text('Save'),
                 ),
@@ -255,20 +322,16 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _habitRecurrenceLabel(Habit habit) {
-    if (habit.recurrenceMask == 0 || habit.recurrenceMask == 0x1F) {
-      return 'Daily';
-    }
-    return 'Mon, Wed, Fri';
-  }
-
-  String _habitTimeLabel(Habit habit) {
-    return '9:00 AM';
+    return formatRecurrenceMask(habit.recurrenceMask);
   }
 
   String _formatTime(DateTime dt) {
@@ -305,7 +368,10 @@ class _DashboardViewState extends State<DashboardView> {
 
   int _bestStreak() {
     int best = 0;
-    final habits = Provider.of<BlueprintProvider>(context, listen: false).habits;
+    final habits = Provider.of<BlueprintProvider>(
+      context,
+      listen: false,
+    ).habits;
     for (final habit in habits) {
       if (habit.currentStreak > best) {
         best = habit.currentStreak;
@@ -327,6 +393,7 @@ class _DashboardViewState extends State<DashboardView> {
         todays.add(inst);
       }
     }
+    todays.sort((a, b) => a.scheduledDate.compareTo(b.scheduledDate));
     return todays;
   }
 
@@ -348,15 +415,34 @@ class _DashboardViewState extends State<DashboardView> {
     int percent,
     BlueprintProvider blueprint,
   ) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          _buildHeader(today, completed, total, percent, _bestStreak()),
-          const SizedBox(height: 20),
-          _buildUpcomingTasks(todays, blueprint),
-          const SizedBox(height: 8),
-          _buildHabitsSection(blueprint),
-        ],
+    final execution = Provider.of<ExecutionProvider>(context, listen: false);
+    List<Widget> children = [];
+    if (blueprint.lastError != null || execution.lastError != null) {
+      String message = blueprint.lastError ?? execution.lastError ?? 'Unknown error';
+      children.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          child: ErrorBanner(
+            message: message,
+            onRetry: _refresh,
+          ),
+        ),
+      );
+    }
+    children.add(_buildHeader(today, completed, total, percent, _bestStreak()));
+    children.add(const SizedBox(height: 8));
+    children.add(_buildUpcomingTasks(todays, blueprint));
+    children.add(const SizedBox(height: 8));
+    children.add(_buildHabitsSection(blueprint));
+    children.add(const SizedBox(height: 12));
+
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: RuledPage(
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(children: children),
+        ),
       ),
     );
   }
@@ -378,14 +464,9 @@ class _DashboardViewState extends State<DashboardView> {
     }
 
     return Scaffold(
-      appBar: AppBar(toolbarHeight: 0, elevation: 0),
-      body: _buildBody(
-        today,
-        todays,
-        completed,
-        total,
-        percent,
-        blueprint,
+      body: SafeArea(
+        bottom: false,
+        child: _buildBody(today, todays, completed, total, percent, blueprint),
       ),
     );
   }

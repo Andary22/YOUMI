@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:youmi_dev/core/utils.dart';
 import 'package:youmi_dev/models/habit.dart';
 import 'package:youmi_dev/models/labels.dart';
 import 'package:youmi_dev/models/task_folder.dart';
 import 'package:youmi_dev/models/task_template.dart';
 import 'package:youmi_dev/providers/app_provider.dart';
 import 'package:youmi_dev/providers/blueprint_provider.dart';
+import 'package:youmi_dev/style/common_widgets.dart';
+import 'package:youmi_dev/style/label_style.dart';
+import 'package:youmi_dev/style/paper_widgets.dart';
 
 part 'library_widgets.dart';
 
@@ -40,6 +44,17 @@ class _LibraryViewState extends State<LibraryView> {
   final TextEditingController _folderTitleController = TextEditingController();
   String? _editingFolderId;
 
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _durationController.dispose();
+    _subTasksController.dispose();
+    _habitTitleController.dispose();
+    _maskController.dispose();
+    _folderTitleController.dispose();
+    super.dispose();
+  }
+
   String _newId() {
     return _uuid.v4();
   }
@@ -48,8 +63,7 @@ class _LibraryViewState extends State<LibraryView> {
     if (existing != null) {
       _editingTemplateId = existing.id;
       _titleController.text = existing.title;
-      _durationController.text =
-          existing.expectedDuration.inMinutes.toString();
+      _durationController.text = existing.expectedDuration.inMinutes.toString();
     } else {
       _editingTemplateId = null;
       _titleController.text = '';
@@ -65,7 +79,7 @@ class _LibraryViewState extends State<LibraryView> {
     _subTasksController.text = subStr;
     if (existing != null) {
       _selectedLabel = existing.label;
-      _selectedFolderId = existing.taskFolderId;
+      _selectedFolderId = _validFolderId(existing.taskFolderId);
     } else {
       _selectedLabel = TaskLabel.work;
       _selectedFolderId = _defaultFolderId();
@@ -146,9 +160,13 @@ class _LibraryViewState extends State<LibraryView> {
     if (userId == null) {
       return;
     }
+    final String rawTitle = _titleController.text.trim();
+    if (rawTitle.isEmpty) {
+      _showMessage('Give the template a title.');
+      return;
+    }
     int minutes = 0;
-    final int? parsedMinutes =
-        int.tryParse(_durationController.text.trim());
+    final int? parsedMinutes = int.tryParse(_durationController.text.trim());
     if (parsedMinutes != null) {
       minutes = parsedMinutes;
     }
@@ -160,28 +178,30 @@ class _LibraryViewState extends State<LibraryView> {
         subTasks.add(SubTask(id: _newId(), title: part, position: i));
       }
     }
-    final String rawTitle = _titleController.text.trim();
     String templateId = _newId();
     if (_editingTemplateId != null) {
       templateId = _editingTemplateId!;
     }
-    String title = rawTitle;
-    if (title == '') {
-      title = 'Untitled';
-    }
     final TaskTemplate template = TaskTemplate(
       id: templateId,
       userId: userId,
-      title: title,
+      title: rawTitle,
       label: _selectedLabel,
       expectedDuration: Duration(minutes: minutes),
       subTasks: subTasks,
       taskFolderId: _selectedFolderId,
     );
-    await _blueprint(context).saveTemplate(template);
-    setState(() {
-      _activeEditor = '';
-    });
+    try {
+      await _blueprint(context).saveTemplate(template);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _activeEditor = '';
+      });
+    } catch (e) {
+      _showMessage(e.toString());
+    }
   }
 
   Future<void> _saveHabit() async {
@@ -189,32 +209,39 @@ class _LibraryViewState extends State<LibraryView> {
     if (userId == null) {
       return;
     }
+    final String rawTitle = _habitTitleController.text.trim();
+    if (rawTitle.isEmpty) {
+      _showMessage('Give the habit a title.');
+      return;
+    }
     int mask = 0;
     final int? parsedMask = int.tryParse(_maskController.text.trim());
     if (parsedMask != null) {
       mask = parsedMask;
     }
-    final String rawTitle = _habitTitleController.text.trim();
     String habitId = _newId();
     if (_editingHabitId != null) {
       habitId = _editingHabitId!;
     }
-    String title = rawTitle;
-    if (title == '') {
-      title = 'Untitled';
-    }
     final Habit habit = Habit(
       id: habitId,
       userId: userId,
-      title: title,
+      title: rawTitle,
       label: _habitSelectedLabel,
       recurrenceMask: mask,
       currentStreak: 0,
     );
-    await _blueprint(context).saveHabit(habit);
-    setState(() {
-      _activeEditor = '';
-    });
+    try {
+      await _blueprint(context).saveHabit(habit);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _activeEditor = '';
+      });
+    } catch (e) {
+      _showMessage(e.toString());
+    }
   }
 
   Future<void> _saveFolder() async {
@@ -223,35 +250,66 @@ class _LibraryViewState extends State<LibraryView> {
       return;
     }
     final String rawTitle = _folderTitleController.text.trim();
+    if (rawTitle.isEmpty) {
+      _showMessage('Give the folder a title.');
+      return;
+    }
     String folderId = _newId();
     if (_editingFolderId != null) {
       folderId = _editingFolderId!;
     }
-    String title = rawTitle;
-    if (title == '') {
-      title = 'Untitled';
-    }
     final TaskFolder folder = TaskFolder(
       id: folderId,
       userId: userId,
-      title: title,
+      title: rawTitle,
     );
-    await _blueprint(context).saveFolder(folder);
-    setState(() {
-      _activeEditor = '';
-    });
+    try {
+      await _blueprint(context).saveFolder(folder);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _activeEditor = '';
+      });
+    } catch (e) {
+      _showMessage(e.toString());
+    }
   }
 
-  Future<void> _deleteTemplate(String id) async {
-    await _blueprint(context).deleteTemplate(id);
+  Future<void> _deleteTemplate(TaskTemplate template) async {
+    final bool confirmed = await confirmDelete(
+      context,
+      itemName: template.title,
+      itemLabel: 'template',
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    await _blueprint(context).deleteTemplate(template.id);
   }
 
-  Future<void> _deleteHabit(String id) async {
-    await _blueprint(context).deleteHabit(id);
+  Future<void> _deleteHabit(Habit habit) async {
+    final bool confirmed = await confirmDelete(
+      context,
+      itemName: habit.title,
+      itemLabel: 'habit',
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    await _blueprint(context).deleteHabit(habit.id);
   }
 
-  Future<void> _deleteFolder(String id) async {
-    await _blueprint(context).deleteFolder(id);
+  Future<void> _deleteFolder(TaskFolder folder) async {
+    final bool confirmed = await confirmDelete(
+      context,
+      itemName: folder.title,
+      itemLabel: 'folder',
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    await _blueprint(context).deleteFolder(folder.id);
   }
 
   BlueprintProvider _blueprint(BuildContext context) {
@@ -266,13 +324,37 @@ class _LibraryViewState extends State<LibraryView> {
     return null;
   }
 
+  String? _validFolderId(String? folderId) {
+    if (folderId == null) {
+      return null;
+    }
+    final folders = Provider.of<BlueprintProvider>(
+      context,
+      listen: false,
+    ).folders;
+    for (int i = 0; i < folders.length; i++) {
+      if (folders[i].id == folderId) {
+        return folderId;
+      }
+    }
+    return null;
+  }
+
   String? _defaultFolderId() {
-    final folders =
-        Provider.of<BlueprintProvider>(context, listen: false).folders;
+    final folders = Provider.of<BlueprintProvider>(
+      context,
+      listen: false,
+    ).folders;
     if (folders.isEmpty) {
       return null;
     }
     return folders.first.id;
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -289,24 +371,43 @@ class _LibraryViewState extends State<LibraryView> {
     final habits = blueprint.habits;
     final folders = blueprint.folders;
     List<Widget> bodyChildren = [];
+    if (blueprint.lastError != null) {
+      bodyChildren.add(
+        ErrorBanner(
+          message: blueprint.lastError!,
+          onRetry: () {
+            final user = Provider.of<AppProvider>(context, listen: false).currentUser;
+            if (user != null) {
+              _blueprint(context).loadForUser(user.id);
+            }
+          },
+        ),
+      );
+    }
     _addActiveEditor(bodyChildren);
     _addLibrarySection(
       bodyChildren,
       'Task Templates',
       _openNewTemplate,
       _buildTemplateCards(templates, folders),
+      emptyIcon: Icons.description_outlined,
+      emptyMessage: 'No templates yet. Tap + to create one.',
     );
     _addLibrarySection(
       bodyChildren,
       'Habits',
       _openNewHabit,
       _buildHabitCards(habits),
+      emptyIcon: Icons.self_improvement_rounded,
+      emptyMessage: 'No habits yet. Tap + to create one.',
     );
     _addLibrarySection(
       bodyChildren,
       'Task Folders',
       _openNewFolder,
       _buildFolderCards(folders),
+      emptyIcon: Icons.folder_outlined,
+      emptyMessage: 'No folders yet. Tap + to create one.',
     );
 
     return Scaffold(
@@ -314,7 +415,12 @@ class _LibraryViewState extends State<LibraryView> {
         title: const Text('Library'),
         automaticallyImplyLeading: false,
       ),
-      body: ListView(padding: const EdgeInsets.all(16), children: bodyChildren),
+      body: RuledPage(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: bodyChildren,
+        ),
+      ),
     );
   }
 }

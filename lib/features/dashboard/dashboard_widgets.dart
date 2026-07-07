@@ -8,49 +8,84 @@ extension _DashboardWidgets on _DashboardViewState {
     int percent,
     int bestStreak,
   ) {
+    final theme = Theme.of(context);
+    final user = Provider.of<AppProvider>(context, listen: false).currentUser;
+    String name = '';
+    if (user != null && user.name.trim().isNotEmpty) {
+      name = user.name.trim().split(' ').first;
+    }
+    String greetingLine = _greeting();
+    if (name.isNotEmpty) {
+      greetingLine = '$greetingLine, $name';
+    }
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.only(left: 20, top: 20, right: 20, bottom: 24),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('YOUMI'),
+                    Text(
+                      greetingLine,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        height: 1.05,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 4),
                     Text(
-                      '${_weekdayName(today.weekday)}, ${_monthName(today.month)} ${today.day}, ${today.year}',
+                      '${_weekdayName(today.weekday)}, ${_monthName(today.month)} ${today.day}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
               ),
-              IconButton(
+              IconButton.filledTonal(
                 onPressed: widget.onOpenSettings,
                 icon: const Icon(Icons.settings_outlined),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              ProgressRing(
+                progress: total == 0 ? 0 : completed / total,
+                centerValue: '$percent%',
+                centerLabel: 'today',
+                size: 128,
+              ),
+              const SizedBox(width: 20),
               Expanded(
-                child: _StatCard(
-                  label: 'Tasks Done',
-                  value: '$completed/$total',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _SidePill(
+                      icon: Icons.task_alt_rounded,
+                      color: theme.colorScheme.primary,
+                      value: '$completed/$total',
+                      label: 'Tasks done today',
+                    ),
+                    const SizedBox(height: 10),
+                    _SidePill(
+                      icon: Icons.local_fire_department_rounded,
+                      color: const Color(0xFFE0665C),
+                      value: '$bestStreak',
+                      label: 'Best streak',
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _StatCard(label: 'Complete', value: '$percent%'),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _StatCard(label: 'Best Streak', value: '$bestStreak'),
               ),
             ],
           ),
@@ -63,20 +98,29 @@ extension _DashboardWidgets on _DashboardViewState {
     List<ActivityInstance> todays,
     BlueprintProvider blueprint,
   ) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Upcoming Tasks'),
-          const SizedBox(height: 8),
-          _buildTaskList(todays, blueprint),
+          Text("Today's Tasks", style: theme.textTheme.titleMedium),
+          const SizedBox(height: 12),
+          if (todays.isEmpty)
+            const EmptyState(
+              icon: Icons.wb_sunny_outlined,
+              title: 'Nothing scheduled today',
+              message: 'Add tasks from the Planner tab to see them here.',
+            )
+          else
+            _buildTaskList(todays, blueprint),
         ],
       ),
     );
   }
 
   Widget _buildHabitsSection(BlueprintProvider blueprint) {
+    final theme = Theme.of(context);
     String sectionTitle = "Today's Habits";
     if (_showHabitManager) {
       sectionTitle = 'Habits';
@@ -85,6 +129,7 @@ extension _DashboardWidgets on _DashboardViewState {
     Widget sectionAction;
     if (_showHabitManager) {
       sectionAction = Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           TextButton(
             onPressed: () {
@@ -93,17 +138,12 @@ extension _DashboardWidgets on _DashboardViewState {
             child: const Text('Back'),
           ),
           const SizedBox(width: 4),
-          ElevatedButton(
+          FilledButton.tonalIcon(
             onPressed: () {
               _openNewHabitDialog();
             },
-            child: Row(
-              children: const [
-                Icon(Icons.add, size: 16),
-                SizedBox(width: 4),
-                Text('New'),
-              ],
-            ),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('New'),
           ),
         ],
       );
@@ -119,22 +159,30 @@ extension _DashboardWidgets on _DashboardViewState {
     Widget habitsContent;
     if (_showHabitManager) {
       habitsContent = _buildHabitManagerList(blueprint);
+    } else if (blueprint.habits.isEmpty) {
+      habitsContent = const EmptyState(
+        icon: Icons.self_improvement_rounded,
+        title: 'No habits yet',
+        message: 'Tap Manage to create your first daily habit.',
+      );
     } else {
       habitsContent = _buildTodayHabitsList(blueprint);
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [Text(sectionTitle), sectionAction],
+            children: [
+              Text(sectionTitle, style: theme.textTheme.titleMedium),
+              sectionAction,
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           habitsContent,
-          const SizedBox(height: 20),
         ],
       ),
     );
@@ -143,26 +191,36 @@ extension _DashboardWidgets on _DashboardViewState {
   Widget _buildTaskSubtitleRow(
     ActivityInstance instance,
     Duration? duration,
-    String labelName,
+    TaskLabel? label,
   ) {
+    final theme = Theme.of(context);
     List<Widget> rowItems = [];
-    rowItems.add(const Icon(Icons.schedule, size: 13));
+    rowItems.add(
+      Icon(Icons.schedule, size: 13, color: theme.colorScheme.onSurfaceVariant),
+    );
     rowItems.add(const SizedBox(width: 4));
-    rowItems.add(Text(_formatTime(instance.scheduledDate)));
+    rowItems.add(
+      Text(
+        _formatTime(instance.scheduledDate),
+        style: theme.textTheme.bodySmall,
+      ),
+    );
     if (duration != null) {
-      rowItems.add(const SizedBox(width: 6));
-      rowItems.add(Text(_formatDuration(duration)));
-    }
-    if (labelName != '') {
+      rowItems.add(const SizedBox(width: 8));
+      rowItems.add(Text('•', style: theme.textTheme.bodySmall));
       rowItems.add(const SizedBox(width: 8));
       rowItems.add(
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          child: Text(labelName),
-        ),
+        Text(_formatDuration(duration), style: theme.textTheme.bodySmall),
       );
     }
-    return Row(children: rowItems);
+    if (label != null) {
+      rowItems.add(const SizedBox(width: 8));
+      rowItems.add(TabChip(label: label, dense: true));
+    }
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: rowItems,
+    );
   }
 
   Widget _buildTaskList(
@@ -174,10 +232,10 @@ extension _DashboardWidgets on _DashboardViewState {
       final instance = todays[i];
       final TaskTemplate? template = _templateFor(instance, blueprint);
       final bool done = instance.status == ActivityStatus.success;
-      String labelName = '';
+      TaskLabel? label = instance.label;
       Duration? duration;
       if (template != null) {
-        labelName = template.label.name;
+        label ??= template.label;
         duration = template.expectedDuration;
       }
       cards.add(
@@ -187,7 +245,7 @@ extension _DashboardWidgets on _DashboardViewState {
             _toggleTask(instance);
           },
           title: _titleFor(instance, blueprint),
-          subtitle: _buildTaskSubtitleRow(instance, duration, labelName),
+          subtitle: _buildTaskSubtitleRow(instance, duration, label),
         ),
       );
     }
@@ -198,6 +256,7 @@ extension _DashboardWidgets on _DashboardViewState {
   }
 
   Widget _buildTodayHabitsList(BlueprintProvider blueprint) {
+    final theme = Theme.of(context);
     List<Widget> cards = [];
     final habits = blueprint.habits;
     for (int i = 0; i < habits.length; i++) {
@@ -210,7 +269,22 @@ extension _DashboardWidgets on _DashboardViewState {
           },
           title: habit.title,
           titleGap: 4,
-          subtitle: Text('${habit.currentStreak} day streak'),
+          subtitle: Row(
+            children: [
+              Icon(
+                Icons.local_fire_department_rounded,
+                size: 13,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '${habit.currentStreak} day streak',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(width: 8),
+              TabChip(label: habit.label, dense: true),
+            ],
+          ),
         ),
       );
     }
@@ -221,60 +295,89 @@ extension _DashboardWidgets on _DashboardViewState {
   }
 
   Widget _buildHabitManagerList(BlueprintProvider blueprint) {
-    List<Widget> items = [
-      const Padding(
-        padding: EdgeInsets.only(bottom: 12),
-        child: Text('Build consistency with daily habits'),
-      ),
-    ];
+    final theme = Theme.of(context);
+    List<Widget> items = [];
     final habits = blueprint.habits;
+    if (habits.isEmpty) {
+      items.add(
+        const EmptyState(
+          icon: Icons.self_improvement_rounded,
+          title: 'No habits yet',
+          message: 'Tap New to build your first daily habit.',
+        ),
+      );
+    }
     for (int i = 0; i < habits.length; i++) {
       final habit = habits[i];
       items.add(
-        Container(
-          width: double.infinity,
+        Card(
           margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(habit.title),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${_habitRecurrenceLabel(habit)}  •  ${_habitTimeLabel(habit)}',
-                    ),
-                    const SizedBox(height: 4),
-                    Text('${habit.currentStreak} day streak'),
-                  ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(habit.title, style: theme.textTheme.titleSmall),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          TabChip(label: habit.label, dense: true),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${_habitRecurrenceLabel(habit)}  •  ${habit.currentStreak}d streak',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () {
-                  _openHabitSettingsDialog(habit);
-                },
-                icon: const Icon(Icons.settings),
-              ),
-            ],
+                IconButton(
+                  onPressed: () {
+                    _openHabitSettingsDialog(habit);
+                  },
+                  icon: const Icon(Icons.settings_outlined),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
-    items.add(const SizedBox(height: 12));
+    items.add(const SizedBox(height: 4));
     items.add(
       Card(
+        color: theme.colorScheme.primaryContainer,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text('How Habits Work'),
-              SizedBox(height: 8),
-              Text('• Habits are automatically added to your daily plan'),
-              Text('• Build streaks by completing them consistently'),
-              Text('• Get reminded at your chosen time'),
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text('How Habits Work', style: theme.textTheme.titleSmall),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '• Habits are automatically added to your daily plan\n'
+                '• Build streaks by completing them consistently\n'
+                '• Choose which days they repeat on',
+                style: theme.textTheme.bodySmall,
+              ),
             ],
           ),
         ),
@@ -299,75 +402,104 @@ class _CheckableCard extends StatelessWidget {
     required this.onPressed,
     required this.title,
     required this.subtitle,
-    this.titleGap = 5,
+    this.titleGap = 6,
   });
 
   @override
   Widget build(BuildContext context) {
-    Widget checkIcon = const SizedBox(width: 0, height: 0);
-    if (checked) {
-      checkIcon = const Icon(Icons.check, size: 15);
-    }
-
-    return Container(
-      width: double.infinity,
+    final theme = Theme.of(context);
+    return Card(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      child: Row(
-        children: [
-          TextButton(
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(26, 26),
-            ),
-            onPressed: onPressed,
-            child: Container(
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                border: Border.all(width: 2),
-                borderRadius: BorderRadius.circular(13),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              StampCheckbox(checked: checked, onTap: onPressed),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        decoration: checked
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                        color: checked
+                            ? theme.colorScheme.onSurfaceVariant
+                            : theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    SizedBox(height: titleGap),
+                    subtitle,
+                  ],
+                ),
               ),
-              child: checkIcon,
-            ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title),
-                SizedBox(height: titleGap),
-                subtitle,
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final String label;
+class _SidePill extends StatelessWidget {
+  final IconData icon;
+  final Color color;
   final String value;
+  final String label;
 
-  const _StatCard({required this.label, required this.value});
+  const _SidePill({
+    required this.icon,
+    required this.color,
+    required this.value,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
-    List<Widget> statChildren = [];
-    statChildren.add(Text(value));
-    statChildren.add(const SizedBox(height: 6));
-    statChildren.add(Text(label));
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: statChildren,
-        ),
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.colorScheme.outline, width: 1.2),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.16),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 16, color: color),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(value, style: theme.textTheme.titleMedium),
+                Text(
+                  label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

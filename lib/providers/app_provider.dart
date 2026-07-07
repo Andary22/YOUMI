@@ -67,6 +67,22 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> resetPassword(String email) async {
+    _setBusy(true);
+    try {
+      await SupabaseApi.instance.resetPasswordForEmail(email);
+      _lastError = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _lastError = _formatError(e);
+      notifyListeners();
+      return false;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
   Future<void> signOut() async {
     _setBusy(true);
     try {
