@@ -310,12 +310,16 @@ class TabChip extends StatelessWidget {
           children: [
             Icon(style.icon, size: dense ? 11 : 13, color: style.color),
             const SizedBox(width: 4),
-            Text(
-              style.displayName,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: style.color,
-                    fontWeight: FontWeight.w700,
-                  ),
+            Flexible(
+              child: Text(
+                style.displayName,
+                overflow: TextOverflow.ellipsis, 
+                maxLines: 1,                   
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: style.color,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
             ),
           ],
         ),
@@ -323,7 +327,6 @@ class TabChip extends StatelessWidget {
     );
   }
 }
-
 class _TabClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
