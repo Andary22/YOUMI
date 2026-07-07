@@ -7,29 +7,40 @@ extension _PlannerWidgets on _PlannerViewState {
       selected = _selectedDay!;
     }
     final eventsForSelected = execution.eventsForDate(selected);
+    eventsForSelected.sort(
+      (a, b) => a.scheduledDate.compareTo(b.scheduledDate),
+    );
     List<Widget> children = [];
 
-    children.add(_buildCalendar(theme, execution));
-    children.add(const SizedBox(height: 16));
+    children.add(_buildCalendarCard(theme, execution));
+    children.add(const SizedBox(height: 20));
     children.add(
       Row(
         children: [
-          Text(_formatFullDate(selected), style: theme.textTheme.titleMedium),
-          const Spacer(),
-          TextButton.icon(
+          Expanded(
+            child: Text(
+              _formatFullDate(selected),
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          FilledButton.tonalIcon(
             onPressed: () {
               _openQuickAddPage(selected);
             },
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add, size: 18),
             label: const Text('Quick Add'),
           ),
         ],
       ),
     );
-    children.add(const SizedBox(height: 8));
+    children.add(const SizedBox(height: 12));
     if (eventsForSelected.isEmpty) {
       children.add(
-        Text('No scheduled items.', style: theme.textTheme.bodyMedium),
+        const EmptyState(
+          icon: Icons.event_available_outlined,
+          title: 'Nothing scheduled',
+          message: 'Tap Quick Add to schedule a task or habit for this day.',
+        ),
       );
     } else {
       for (int i = 0; i < eventsForSelected.length; i++) {
@@ -37,7 +48,18 @@ extension _PlannerWidgets on _PlannerViewState {
       }
     }
 
-    return ListView(padding: const EdgeInsets.all(16), children: children);
+    return RuledPage(
+      child: ListView(padding: const EdgeInsets.all(16), children: children),
+    );
+  }
+
+  Widget _buildCalendarCard(ThemeData theme, ExecutionProvider execution) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 12, 8, 16),
+        child: _buildCalendar(theme, execution),
+      ),
+    );
   }
 
   Widget _buildCalendar(ThemeData theme, ExecutionProvider execution) {
@@ -50,7 +72,12 @@ extension _PlannerWidgets on _PlannerViewState {
       weekDayLabels.add(
         Expanded(
           child: Center(
-            child: Text(weekDays[i], style: theme.textTheme.bodySmall),
+            child: Text(
+              weekDays[i],
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
         ),
       );
@@ -70,49 +97,46 @@ extension _PlannerWidgets on _PlannerViewState {
 
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(
-              icon: Icon(
-                Icons.chevron_left,
-                color: theme.colorScheme.onSurface,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded),
+                onPressed: () {
+                  _goToPreviousMonth();
+                  execution.fetchMonthData(
+                    _focusedDay,
+                    monthsBefore: _monthsBefore,
+                    monthsAfter: _monthsAfter,
+                  );
+                },
               ),
-              onPressed: () {
-                _goToPreviousMonth();
-                execution.fetchMonthData(
-                  _focusedDay,
-                  monthsBefore: _monthsBefore,
-                  monthsAfter: _monthsAfter,
-                );
-              },
-            ),
-            Text(
-              '${_monthName(_focusedDay.month)} ${_focusedDay.year}',
-              style: theme.textTheme.titleMedium,
-            ),
-            IconButton(
-              icon: Icon(
-                Icons.chevron_right,
-                color: theme.colorScheme.onSurface,
+              Text(
+                '${_monthName(_focusedDay.month)} ${_focusedDay.year}',
+                style: theme.textTheme.titleMedium,
               ),
-              onPressed: () {
-                _goToNextMonth();
-                execution.fetchMonthData(
-                  _focusedDay,
-                  monthsBefore: _monthsBefore,
-                  monthsAfter: _monthsAfter,
-                );
-              },
-            ),
-          ],
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded),
+                onPressed: () {
+                  _goToNextMonth();
+                  execution.fetchMonthData(
+                    _focusedDay,
+                    monthsBefore: _monthsBefore,
+                    monthsAfter: _monthsAfter,
+                  );
+                },
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: weekDayLabels,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Column(children: weekRows),
       ],
     );
@@ -138,14 +162,15 @@ extension _PlannerWidgets on _PlannerViewState {
     final isToday = _isSameDay(day, DateTime.now());
     final inMonth = day.month == _focusedDay.month;
     final events = execution.eventsForDate(day);
-    Color baseColor = Colors.black;
-    final TextStyle? bodyStyle = theme.textTheme.bodyMedium;
-    if (bodyStyle != null && bodyStyle.color != null) {
-      baseColor = bodyStyle.color!;
-    }
-    Color textColor = theme.disabledColor;
+
+    Color textColor = theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4);
     if (inMonth) {
-      textColor = baseColor;
+      textColor = theme.colorScheme.onSurface;
+    }
+    if (isSelected) {
+      textColor = theme.colorScheme.onPrimary;
+    } else if (isToday) {
+      textColor = theme.colorScheme.primary;
     }
 
     BoxDecoration? decoration;
@@ -156,35 +181,8 @@ extension _PlannerWidgets on _PlannerViewState {
       );
     } else if (isToday) {
       decoration = BoxDecoration(
-        border: Border.all(color: theme.colorScheme.primary),
+        border: Border.all(color: theme.colorScheme.primary, width: 1.4),
         shape: BoxShape.circle,
-      );
-    }
-
-    List<Widget> contents = [];
-    contents.add(
-      Container(
-        width: 36,
-        height: 36,
-        decoration: decoration,
-        alignment: Alignment.center,
-        child: Text(
-          '${day.day}',
-          style: TextStyle(color: _dayTextColor(isSelected, theme, textColor)),
-        ),
-      ),
-    );
-    contents.add(const SizedBox(height: 6));
-    if (events.isNotEmpty) {
-      contents.add(
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.secondary,
-            shape: BoxShape.circle,
-          ),
-        ),
       );
     }
 
@@ -194,8 +192,38 @@ extension _PlannerWidgets on _PlannerViewState {
       },
       child: Container(
         alignment: Alignment.center,
-        margin: const EdgeInsets.all(4),
-        child: Column(mainAxisSize: MainAxisSize.min, children: contents),
+        margin: const EdgeInsets.symmetric(vertical: 3),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: decoration,
+              alignment: Alignment.center,
+              child: Text(
+                '${day.day}',
+                style: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+              ),
+            ),
+            const SizedBox(height: 4),
+            SizedBox(
+              height: 5,
+              child: events.isEmpty
+                  ? null
+                  : Container(
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.secondary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -205,7 +233,7 @@ extension _PlannerWidgets on _PlannerViewState {
     final isHabit = item.habitId != null;
     final title = _resolveTitle(item, blueprint);
     final label = _resolveLabel(item, blueprint);
-    String timeText = 'Habit';
+    String timeText = 'Habit · repeats';
     if (!isHabit) {
       timeText = _formatTime(
         item.scheduledDate,
@@ -213,71 +241,81 @@ extension _PlannerWidgets on _PlannerViewState {
       );
     }
 
-    TextStyle? labelStyle = theme.textTheme.bodySmall;
-    if (labelStyle != null) {
-      labelStyle = labelStyle.copyWith(color: theme.colorScheme.primary);
-    }
     VoidCallback? scheduleAction;
     if (!isHabit) {
       scheduleAction = () {
         _editItemTime(item);
       };
     }
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(title),
-      subtitle: Wrap(
-        spacing: 6,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Text(timeText, style: theme.textTheme.bodySmall),
-          InkWell(
-            onTap: () {
-              _editItemLabel(item);
-            },
-            child: Text(
-              '# ${_labelText(label)}',
-              style: labelStyle,
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: theme.textTheme.titleSmall),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(timeText, style: theme.textTheme.bodySmall),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              onTap: () {
+                                _editItemLabel(item);
+                              },
+                              child: TabChip(label: label, dense: true),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.schedule),
-            onPressed: scheduleAction,
-          ),
-          IconButton(
-            icon: const Icon(Icons.note_alt_outlined),
-            onPressed: () {
-              _editItemNote(item);
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
-            onPressed: () {
-              Provider.of<ExecutionProvider>(
-                context,
-                listen: false,
-              ).removeItem(item.id);
-              _showAddFeedback(context, 'Deleted $title');
-            },
-          ),
-        ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.schedule_outlined),
+                  tooltip: 'Change time',
+                  onPressed: scheduleAction,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.note_alt_outlined),
+                  tooltip: 'Note',
+                  onPressed: () {
+                    _editItemNote(item);
+                  },
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.delete_outline,
+                    color: theme.colorScheme.error,
+                  ),
+                  tooltip: 'Delete',
+                  onPressed: () {
+                    _deleteItem(item, title);
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
-  }
-
-  Color _dayTextColor(
-    bool isSelected,
-    ThemeData theme,
-    Color fallback,
-  ) {
-    if (isSelected) {
-      return theme.colorScheme.onPrimary;
-    }
-    return fallback;
   }
 }

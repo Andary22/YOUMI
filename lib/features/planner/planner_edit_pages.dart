@@ -25,36 +25,74 @@ class _QuickAddPage extends StatelessWidget {
     List<Widget> children = [];
     children.add(Text('Templates', style: theme.textTheme.titleMedium));
     children.add(const SizedBox(height: 8));
+    if (templates.isEmpty) {
+      children.add(
+        const EmptyState(
+          icon: Icons.description_outlined,
+          title: 'No templates yet',
+          message: 'Create task templates from the Library tab.',
+        ),
+      );
+    }
     for (int i = 0; i < templates.length; i++) {
       final template = templates[i];
+      final style = labelStyleFor(template.label as TaskLabel, theme.colorScheme);
       children.add(
-        ListTile(
-          title: Text(template.title),
-          subtitle: Text(labelText(template.label)),
-          onTap: () {
-            Navigator.pop(
-              context,
-              _QuickAddResult(type: 'template', template: template),
-            );
-          },
+        Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: style.color.withValues(alpha: 0.14),
+              foregroundColor: style.color,
+              child: Icon(style.icon, size: 18),
+            ),
+            title: Text(template.title as String),
+            subtitle: Text(labelText(template.label as TaskLabel)),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              Navigator.pop(
+                context,
+                _QuickAddResult(type: 'template', template: template),
+              );
+            },
+          ),
         ),
       );
     }
     children.add(const SizedBox(height: 16));
     children.add(Text('Habits', style: theme.textTheme.titleMedium));
     children.add(const SizedBox(height: 8));
+    if (habits.isEmpty) {
+      children.add(
+        const EmptyState(
+          icon: Icons.self_improvement_rounded,
+          title: 'No habits yet',
+          message: 'Create habits from the Library tab.',
+        ),
+      );
+    }
     for (int i = 0; i < habits.length; i++) {
       final habit = habits[i];
+      final style = labelStyleFor(habit.label as TaskLabel, theme.colorScheme);
       children.add(
-        ListTile(
-          title: Text(habit.title),
-          subtitle: Text(labelText(habit.label)),
-          onTap: () {
-            Navigator.pop(
-              context,
-              _QuickAddResult(type: 'habit', habit: habit),
-            );
-          },
+        Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: style.color.withValues(alpha: 0.14),
+              foregroundColor: style.color,
+              child: Icon(style.icon, size: 18),
+            ),
+            title: Text(habit.title as String),
+            subtitle: Text(labelText(habit.label as TaskLabel)),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () {
+              Navigator.pop(
+                context,
+                _QuickAddResult(type: 'habit', habit: habit),
+              );
+            },
+          ),
         ),
       );
     }
@@ -87,20 +125,27 @@ class _NoteEditorPageState extends State<_NoteEditorPage> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Note')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TextField(
               controller: _controller,
-              maxLines: 4,
+              maxLines: 5,
+              autofocus: true,
               decoration: const InputDecoration(labelText: 'Add a note'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
                 final trimmed = _controller.text.trim();
@@ -132,12 +177,21 @@ class _LabelPickerPage extends StatelessWidget {
     children.add(const SizedBox(height: 8));
     for (int i = 0; i < TaskLabel.values.length; i++) {
       final label = TaskLabel.values[i];
+      final style = labelStyleFor(label, theme.colorScheme);
       children.add(
-        ListTile(
-          title: Text(labelText(label)),
-          onTap: () {
-            Navigator.pop(context, label);
-          },
+        Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: style.color.withValues(alpha: 0.14),
+              foregroundColor: style.color,
+              child: Icon(style.icon, size: 18),
+            ),
+            title: Text(labelText(label)),
+            onTap: () {
+              Navigator.pop(context, label);
+            },
+          ),
         ),
       );
     }

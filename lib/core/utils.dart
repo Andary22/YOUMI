@@ -1,3 +1,34 @@
+/// Decodes a habit recurrence bitmask (bit 0 = Monday ... bit 6 = Sunday)
+/// into a short display string. A mask of 0 or a full week is treated as
+/// "Daily" since that's how habits with no explicit schedule behave.
+String formatRecurrenceMask(int mask) {
+  const List<String> dayLabels = [
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun',
+  ];
+  if (mask <= 0 || mask >= 0x7F) {
+    return 'Daily';
+  }
+  final List<String> selected = [];
+  for (int i = 0; i < dayLabels.length; i++) {
+    if ((mask & (1 << i)) != 0) {
+      selected.add(dayLabels[i]);
+    }
+  }
+  if (selected.isEmpty) {
+    return 'Daily';
+  }
+  if (selected.length == 7) {
+    return 'Daily';
+  }
+  return selected.join(', ');
+}
+
 Duration parseInterval(dynamic value) {
   if (value is Duration) {
     return value;

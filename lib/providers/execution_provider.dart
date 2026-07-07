@@ -31,9 +31,9 @@ class ExecutionProvider extends ChangeNotifier {
   List<ActivityInstance> eventsForDate(DateTime date) {
     final key = _dateKey(date);
     if (_monthEvents.containsKey(key)) {
-      return _monthEvents[key]!;
+      return List<ActivityInstance>.from(_monthEvents[key]!);
     }
-    return const [];
+    return <ActivityInstance>[];
   }
 
   Future<void> fetchMonthData(
@@ -84,7 +84,7 @@ class ExecutionProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> addItem(ActivityInstance item) async {
+  Future<ActivityInstance> addItem(ActivityInstance item) async {
     final saved = await SupabaseApi.instance.upsertActivityInstance(item);
     _items.add(saved);
     if (_isWithinMonth(saved.scheduledDate)) {
@@ -99,6 +99,7 @@ class ExecutionProvider extends ChangeNotifier {
       bucket.add(saved);
     }
     notifyListeners();
+    return saved;
   }
 
   Future<void> updateItemTime(String id, DateTime newTime) async {

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
-// note: removed dependency on `table_calendar` to comply with course-supplied widgets
 import 'package:youmi_dev/models/activity_instance.dart';
 import 'package:youmi_dev/models/labels.dart';
 import 'package:youmi_dev/providers/app_provider.dart';
 import 'package:youmi_dev/providers/blueprint_provider.dart';
 import 'package:youmi_dev/providers/execution_provider.dart';
+import 'package:youmi_dev/style/common_widgets.dart';
+import 'package:youmi_dev/style/label_style.dart';
+import 'package:youmi_dev/style/paper_widgets.dart';
 
 part 'planner_widgets.dart';
 part 'planner_edit_pages.dart';
@@ -44,21 +46,28 @@ class _PlannerViewState extends State<PlannerView> {
     final execution = Provider.of<ExecutionProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Planner', style: _plannerTitleStyle(theme)),
-        centerTitle: true,
-      ),
-      body: _buildScheduleTab(theme, execution),
+      appBar: AppBar(title: const Text('Planner'), centerTitle: false),
+      body: execution.lastError != null
+          ? RuledPage(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  ErrorBanner(
+                    message: execution.lastError!,
+                    onRetry: () {
+                      execution.fetchMonthData(
+                        _focusedDay,
+                        monthsBefore: _monthsBefore,
+                        monthsAfter: _monthsAfter,
+                      );
+                    },
+                  ),
+                  _buildCalendarCard(theme, execution),
+                ],
+              ),
+            )
+          : _buildScheduleTab(theme, execution),
     );
-  }
-
-  TextStyle _plannerTitleStyle(ThemeData theme) {
-    TextStyle style = const TextStyle(fontWeight: FontWeight.bold);
-    final TextStyle? baseStyle = theme.textTheme.titleMedium;
-    if (baseStyle != null) {
-      style = baseStyle.copyWith(fontWeight: FontWeight.bold);
-    }
-    return style;
   }
 
   void _goToPreviousMonth() {
@@ -80,12 +89,12 @@ class _PlannerViewState extends State<PlannerView> {
     });
   }
 
-  void _openQuickAddPage(DateTime date) async { // Added async here
+  Future<void> _openQuickAddPage(DateTime date) async {
     final blueprint = Provider.of<BlueprintProvider>(context, listen: false);
     final execution = Provider.of<ExecutionProvider>(context, listen: false);
     String? userId;
     final user = Provider.of<AppProvider>(context, listen: false).currentUser;
-    
+
     if (user != null) {
       userId = user.id;
     }
@@ -108,7 +117,9 @@ class _PlannerViewState extends State<PlannerView> {
       ),
     );
 
-    if (!mounted || result == null) return;
+    if (!mounted || result == null) {
+      return;
+    }
 
     ActivityInstance? newItem;
 
@@ -131,7 +142,7 @@ class _PlannerViewState extends State<PlannerView> {
         subTaskStates: subTaskStates,
       );
 
-      execution.addItem(newItem);
+      newItem = await execution.addItem(newItem);
       _showAddFeedback(context, 'Added ${template.title}');
     }
 
@@ -147,28 +158,27 @@ class _PlannerViewState extends State<PlannerView> {
         note: null,
         subTaskStates: const {},
       );
-      
-      execution.addItem(newItem);
+
+      newItem = await execution.addItem(newItem);
       _showAddFeedback(context, 'Added ${habit.title}');
     }
 
     if (newItem != null && mounted) {
-      // await Future.delayed(const Duration(milliseconds: 150));
-      if (mounted) {
-        await _editItemTime(newItem);
-      }
+      await _editItemTime(newItem);
     }
   }
 
   Future<void> _editItemTime(ActivityInstance item) async {
-  final initialTime = TimeOfDay.fromDateTime(item.scheduledDate);
+    final initialTime = TimeOfDay.fromDateTime(item.scheduledDate);
 
-  final TimeOfDay? pickedTime = await showTimePicker(
-    context: context,
-    initialTime: initialTime,
-  );
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
 
-  if (pickedTime != null) {
+    if (pickedTime == null) {
+      return;
+    }
     final newScheduledDate = DateTime(
       item.scheduledDate.year,
       item.scheduledDate.month,
@@ -177,61 +187,76 @@ class _PlannerViewState extends State<PlannerView> {
       pickedTime.minute,
     );
 
-    if (!mounted) return; 
+    if (!mounted) {
+      return;
+    }
 
     final execution = Provider.of<ExecutionProvider>(context, listen: false);
     execution.updateItemTime(item.id, newScheduledDate);
-    
+
+    if (!mounted) {
+      return;
+    }
     _showAddFeedback(context, 'Time updated to ${pickedTime.format(context)}');
   }
-}
 
-  void _editItemNote(ActivityInstance item) {
-    Navigator.push<String>(
+  Future<void> _editItemNote(ActivityInstance item) async {
+    String initialNote = '';
+    if (item.note != null) {
+      initialNote = item.note!;
+    }
+    final result = await Navigator.push<String>(
       context,
       MaterialPageRoute(
         builder: (context) {
-          String initialNote = '';
-          if (item.note != null) {
-            initialNote = item.note!;
-          }
           return _NoteEditorPage(initialNote: initialNote);
         },
       ),
-    ).then((result) {
-      if (!mounted) {
-        return;
-      }
-      if (result != null) {
-        Provider.of<ExecutionProvider>(
-          context,
-          listen: false,
-        ).updateItemNote(item.id, result);
-        _showAddFeedback(context, 'Note saved');
-      }
-    });
+    );
+    if (!mounted) {
+      return;
+    }
+    if (result != null) {
+      Provider.of<ExecutionProvider>(
+        context,
+        listen: false,
+      ).updateItemNote(item.id, result);
+      _showAddFeedback(context, 'Note saved');
+    }
   }
 
-  void _editItemLabel(ActivityInstance item) {
-    Navigator.push<TaskLabel>(
+  Future<void> _editItemLabel(ActivityInstance item) async {
+    final selected = await Navigator.push<TaskLabel>(
       context,
       MaterialPageRoute(
         builder: (context) {
           return _LabelPickerPage(labelText: _labelText);
         },
       ),
-    ).then((selected) {
-      if (!mounted) {
-        return;
-      }
-      if (selected != null) {
-        Provider.of<ExecutionProvider>(
-          context,
-          listen: false,
-        ).updateItemLabel(item.id, selected);
-        _showAddFeedback(context, 'Label updated');
-      }
-    });
+    );
+    if (!mounted) {
+      return;
+    }
+    if (selected != null) {
+      Provider.of<ExecutionProvider>(
+        context,
+        listen: false,
+      ).updateItemLabel(item.id, selected);
+      _showAddFeedback(context, 'Label updated');
+    }
+  }
+
+  Future<void> _deleteItem(ActivityInstance item, String title) async {
+    final bool confirmed = await confirmDelete(
+      context,
+      itemName: title,
+      itemLabel: 'this item',
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    Provider.of<ExecutionProvider>(context, listen: false).removeItem(item.id);
+    _showAddFeedback(context, 'Deleted $title');
   }
 
   void _showAddFeedback(BuildContext context, String title) {

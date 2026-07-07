@@ -63,6 +63,8 @@ class _YoumiAppState extends State<YoumiApp> {
           return MaterialApp(
             title: 'Youmi',
             theme: themeProvider.theme,
+            themeAnimationDuration: const Duration(milliseconds: 320),
+            themeAnimationCurve: Curves.easeOutCubic,
             home: const AuthPage(),
           );
         },

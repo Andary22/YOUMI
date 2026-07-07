@@ -14,6 +14,9 @@ abstract class AppPalette {
   Color get border;
 }
 
+// "Daybook" palettes: warm paper tones with a single terracotta-ink accent,
+// evoking a physical daily planner rather than a generic Material app.
+// (name: 'light' / 'dark' kept for compatibility with saved preferences.)
 class LightPalette implements AppPalette {
   const LightPalette();
 
@@ -34,37 +37,37 @@ class LightPalette implements AppPalette {
 
   @override
   Color get background {
-    return const Color(0xFFF7F5F2);
+    return const Color(0xFFF7F1E4);
   }
 
   @override
   Color get surface {
-    return const Color(0xFFFFFFFF);
+    return const Color(0xFFFFFCF5);
   }
 
   @override
   Color get primary {
-    return const Color(0xFF2F6D5D);
+    return const Color(0xFFC1622D);
   }
 
   @override
   Color get secondary {
-    return const Color(0xFF7B5A3A);
+    return const Color(0xFF2F3B52);
   }
 
   @override
   Color get text {
-    return const Color(0xFF1C1B1A);
+    return const Color(0xFF2A2420);
   }
 
   @override
   Color get mutedText {
-    return const Color(0xFF6E6A65);
+    return const Color(0xFF8A7F72);
   }
 
   @override
   Color get border {
-    return const Color(0xFFE3DED6);
+    return const Color(0xFFE8DCC8);
   }
 }
 
@@ -88,37 +91,37 @@ class DarkPalette implements AppPalette {
 
   @override
   Color get background {
-    return const Color(0xFF121210);
+    return const Color(0xFF1C1712);
   }
 
   @override
   Color get surface {
-    return const Color(0xFF1C1B19);
+    return const Color(0xFF241D16);
   }
 
   @override
   Color get primary {
-    return const Color(0xFF6BC2A0);
+    return const Color(0xFFE08249);
   }
 
   @override
   Color get secondary {
-    return const Color(0xFFB89C7D);
+    return const Color(0xFF9AA3B5);
   }
 
   @override
   Color get text {
-    return const Color(0xFFF4F0EA);
+    return const Color(0xFFF3EAD9);
   }
 
   @override
   Color get mutedText {
-    return const Color(0xFFB0AAA2);
+    return const Color(0xFFB9AC98);
   }
 
   @override
   Color get border {
-    return const Color(0xFF2C2A27);
+    return const Color(0xFF362C21);
   }
 }
 
